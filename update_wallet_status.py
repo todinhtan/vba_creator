@@ -3,16 +3,10 @@ import json
 from pymongo import MongoClient
 import threading
 from lib.epiapi import epiapi
-import logging
-import graypy
 
 mongoClient = MongoClient('13.229.119.114', 27017)
 db = mongoClient.vba_service
 
-grayLogger = logging.getLogger('graylog')
-grayLogger.setLevel(logging.CRITICAL)
-handler = graypy.GELFHandler('52.221.204.21', 12202)
-grayLogger.addHandler(handler)
 
 def createEpiApi(credentials):
     account_id = credentials.get('accountId', None)
@@ -54,7 +48,7 @@ def process():
         print(walletId)
         httpCode, body = updateStatusApproved(walletId)
         print(httpCode)
-        if (httpCode == 204):
+        if (httpCode == 204 or httpCode == 204):
             updateCallbackStatus(walletId, db.vbarequests, "executed")
         elif (httpCode == 401):
             updateCallbackStatus(walletId, db.vbarequests, "unauthorized")
@@ -62,4 +56,3 @@ def process():
 
 if __name__ == '__main__':
     process()
-    

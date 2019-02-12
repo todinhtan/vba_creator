@@ -20,14 +20,15 @@ import datetime
 from pymongo import MongoClient
 import threading
 import graypy
+import shutil
 
 
-file_path = 'BFCONSENT.pdf'
+file_path = 'NECONSENT.pdf'
 shop_file_path = 'amz_mainpage.png'
 
 grayLogger = logging.getLogger('graylog')
 grayLogger.setLevel(logging.CRITICAL)
-handler = graypy.GELFHandler('52.221.204.21', 12202)
+handler = graypy.GELFHandler(os.environ['GRAYLOG_HOST'], int(os.environ['GRAYLOG_PORT']))
 grayLogger.addHandler(handler)
 
 logger = logging.getLogger()
@@ -56,7 +57,7 @@ def verifyEpiApiInputs(body):
     if wyreCredentials is None:
         return {'error':'wyreCredentials is required'}
     if wyreCredentials.get('accountId') is None or wyreCredentials.get('apiKey') is None or wyreCredentials.get('apiSecKey') is None:
-        return {'error':'wyreCredentials is invalid\nwyreCredentials format should be:%s'.format(json.dumps({'accountId':'string','apiKey':'string','apiKey':'string'}))}
+        return {'error':'wyreCredentials is invalid\nwyreCredentials format should be:{}'.format(json.dumps({'accountId':'string','apiKey':'string','apiKey':'string'}))}
     return None, walletId, wyreCredentials
 
 def createEpiApi(credentials):
@@ -88,16 +89,16 @@ def verifyWalletVBA(walletId, vbaVerification):
     for key, value in defaultFields.items():
         if vbaVerification.get(key,None) is None:
             if defaultFields.get(key) == 'required':
-                return {'error':'vbaVerification miss %s'.format(key)}
+                return {'error':'vbaVerification miss {}'.format(key)}, None
             vbaVerification[key] = defaultFields.get(key)
     address = vbaVerification.get("address")
     for key, value in defaultAddress.items():
         if address.get(key,None) is None:
             if defaultAddress.get(key) == 'required':
-                return {'error':'vbaVerification miss %s'.format(key)}
+                return {'error':'vbaVerification miss {}'.format(key)}, None
             vbaVerification[key] = defaultAddress.get(key)
 
-    vbaVerification['isBusiness'] = vbaVerification.get('entityScope') == 'CORP'
+    vbaVerification['isBusiness'] = vbaVerification.get('entityType') == 'CORP'
 
     return None, vbaVerification
 
@@ -109,10 +110,10 @@ args = {
     'fingerprint': '5af084654688ae0043d84603',
     'ip_address': myip, # user's IP
     'development_mode': False if os.environ['SYNAPSE_ENV'] == 'production' else True, # (optional) default False
-    'logging': True # (optional) logs to stdout if True
+    'logging': bool(os.environ['ON_DEBUG']) # (optional) default False # (optional) logs to stdout if True
 }
-print("synapse environment:\n")
-print(args)
+#print("synapse environment:\n")
+#print(args)
 
 #a. Create User
 client = Client(**args)
@@ -151,8 +152,11 @@ def addBasisDocument(user, data):
         day = time.strftime("%d", time.localtime(int(dateOfBirth/1000)))
         month = time.strftime("%m", time.localtime(int(dateOfBirth/1000)))
         year = time.strftime("%Y", time.localtime(int(dateOfBirth/1000)))
-        print("nameCn", data.get('nameCn'))
-        name = pinyin.get(data.get("nameCn"), format="strip", delimiter=" ") if (data.get('nameCn', None) != '' and data.get('nameCn', None) != None) else data.get("nameEn")
+        #print("nameCn", data.get('nameCn'))
+        if data.get('isBusiness') == True:
+            name = pinyin.get(data.get("companyNameCn"), format="strip", delimiter=" ") if (data.get('companyNameCn', None) != '' and data.get('companyNameCn', None) != None) else data.get("companyNameEn")
+        else:
+            name = pinyin.get(data.get("nameCn"), format="strip", delimiter=" ") if (data.get('nameCn', None) != '' and data.get('nameCn', None) != None) else data.get("nameEn")
         options = {
             'email': data.get('email'),
             'phone_number': data.get('phoneNumber'),
@@ -172,8 +176,8 @@ def addBasisDocument(user, data):
             # 'address_country_code': address_country_code
             'address_country_code': address.get('country')
         }
-        print("add document options:")
-        print(options)
+        #print("add document options:")
+        #print(options)
         res = user.add_base_document(**options)
         return None, res
     except Exception as e:
@@ -189,7 +193,7 @@ def addBusinessDocument(user, base_document, data, walletId):
         co_regid = data.get('registrationNumber')
         phone_number = data.get('phoneNumber')
         alias = data.get('shopName')
-        legal_name_ind = pinyin.get(data.get("nameCn"), format="strip", delimiter=" ") if (data.get('nameCn', None) != '' and data.get('nameCn', None) != None) else data.get("nameEn")
+        legal_name_ind = pinyin.get(data.get("companyNameCn"), format="strip", delimiter=" ") if (data.get('companyNameCn', None) != '' and data.get('companyNameCn', None) != None) else data.get("companyNameEn")
         address = data.get('address')
         addressstreetstrings = [address.get("street1"),address.get("street2")]
         addressstreetstrings = ' '.join(filter(None, addressstreetstrings))
@@ -209,11 +213,11 @@ def addBusinessDocument(user, base_document, data, walletId):
 
         virtual_document = base_document.add_virtual_document(type='OTHER', value=co_regid)
         base_document = virtual_document.base_document
-        print('Virtual Doc ADDED!')
+        #print('Virtual Doc ADDED!')
         # file_path = wallet_id+'-coi.jpg'
         http_code, docImage = epiapiCli.get_coi(data.get('coiDoc'), data.get('sessionId', None))
         physical_document = base_document.add_physical_document(type='OTHER', mime_type='image/jpeg', byte_stream=docImage)
-        print('COI ADDED!')
+        #print('COI ADDED!')
         kwargs = {
             'email': walletId+'@sendwyre.com',
             'phone_number': '0086'+phone_number,
@@ -235,12 +239,12 @@ def addBusinessDocument(user, base_document, data, walletId):
         }
         base_document2 = user.add_base_document(**kwargs)
         user2 = base_document2.user
-        print('ADDIITONAL BASE DOC ADDED!')
+        #print('ADDIITONAL BASE DOC ADDED!')
         time.sleep(10)
         # file_path = wallet_id+'-govid.jpg'
         http_code, docImage = epiapiCli.get_govid(data.get('idDoc'), data.get('sessionId', None))
         physical_document = base_document2.add_physical_document(type='GOVT_ID_INT', mime_type='image/png', byte_stream=docImage)
-        print('LEG REP ID ADDED!')
+        #print('LEG REP ID ADDED!')
         return None
     except Exception as e:
         logger.debug(traceback.format_exc())
@@ -250,16 +254,19 @@ def get_shop_img(amz_id):
     DRIVER = 'chromedriver'
     driver = webdriver.Chrome(DRIVER)
     amzurl = 'https://www.amazon.com/s?merchant='+amz_id
-    print(amzurl)
+    #print(amzurl)
     driver.get(amzurl)
     screenshot = driver.save_screenshot(amz_id+'-shop.png')
     driver.quit()
     file_path = amz_id+'-shop.png'
     return file_path
 
-def addPhysicalDocument(base_document, data):
+def addPhysicalDocument(base_document, data, accountId):
     try:
-        base_document.add_physical_document(type='OTHER', file_path=file_path) # Consent
+        physical_document_name = accountId.split(":")[1] + ".pdf"
+        shutil.copyfile(file_path, physical_document_name)
+        base_document.add_physical_document(type='OTHER', file_path=physical_document_name) # Consent
+        os.remove(physical_document_name)
         base_document.add_physical_document(type='OTHER', mime_type='image/png', file_path=shop_file_path) # Shop Screengrab
         value = 'data:image/png;base64,SUQs=='
         base_document.add_physical_document(type='OTHER', value=value) # Blank Doc
@@ -317,12 +324,12 @@ def fromSynapseResponse(synapseUser, synapseNode, synapseSubnet):
         "beneficiaryName": getattr(synapseUser, 'legal_names')[0]
     }
 
-    print("synapseUser")
-    print(synapseUser)
-    print("synapseNode")
-    print(synapseNode)
-    print("synapseSubnet")
-    print(synapseSubnet)
+    #print("synapseUser")
+    #print(synapseUser)
+    #print("synapseNode")
+    #print(synapseNode)
+    #print("synapseSubnet")
+    #print(synapseSubnet)
     ids = {'userId':myuserjson.get("_id"), 'nodeId':mynodejson.get("_id"), 'subnetId':mysubnetjson.get("_id"), 'accountNum':mysubnetjson.get("account_num")}
     permission = myuserjson.get("permission")
     doc_status = myuserjson.get("doc_status")
@@ -355,56 +362,56 @@ def createVBA(vbaRequest):
 # from here
 #     threading.Timer(1 * 30, createVBA).start()
 #     for vbaRequest in getPendingRequest():
-    print("vbaRequest: ")
-    print(vbaRequest)
+    #print("vbaRequest: ")
+    #print(vbaRequest)
     walletId = vbaRequest.get('walletId')
     accountId = vbaRequest.get('accountId')
     error, synapseUserData = verifyWalletVBA(walletId, vbaRequest)
     if error is not None:
         logger.error(error)
-        grayLogger.critical(error['error'], extra={'type': 'verifyWalletVBA', 'vbaRequest':json.dumps(vbaRequest)})
+        grayLogger.critical(error['error'], extra={'type': 'verifyWalletVBA', 'vbaRequest':vbaRequest})
         updateVBAFail(vbaRequest)
         return
 
     error, synapseUser = createSynapseUser(accountId, vbaRequest)
     if error is not None:
         logger.error(error)
-        grayLogger.critical(error['error'], extra={'type': 'createSynapseUser', 'vbaRequest':json.dumps(vbaRequest)})
+        grayLogger.critical(error['error'], extra={'type': 'createSynapseUser', 'vbaRequest':vbaRequest})
         updateVBAFail(vbaRequest)
         return
 
     error, baseDocument = addBasisDocument(synapseUser, vbaRequest)
     if error is not None:
         logger.error(error)
-        grayLogger.critical(error['error'], extra={'type': 'addBasisDocument', 'vbaRequest':json.dumps(vbaRequest)})
+        grayLogger.critical(error['error'], extra={'type': 'addBasisDocument', 'vbaRequest':vbaRequest})
         updateVBAFail(vbaRequest)
         return
 
     error = addBusinessDocument(synapseUser, baseDocument, vbaRequest, walletId)
     if error is not None:
         logger.error(error)
-        grayLogger.critical(error['error'], extra={'type': 'addBusinessDocument', 'vbaRequest':json.dumps(vbaRequest)})
+        grayLogger.critical(error['error'], extra={'type': 'addBusinessDocument', 'vbaRequest':vbaRequest})
         updateVBAFail(vbaRequest)
         return
 
-    error, baseDocument = addPhysicalDocument(baseDocument, vbaRequest)
+    error, baseDocument = addPhysicalDocument(baseDocument, vbaRequest, accountId)
     if error is not None:
         logger.error(error)
-        grayLogger.critical(error['error'], extra={'type': 'addPhysicalDocument', 'vbaRequest':json.dumps(vbaRequest)})
+        grayLogger.critical(error['error'], extra={'type': 'addPhysicalDocument', 'vbaRequest':vbaRequest})
         updateVBAFail(vbaRequest)
         return
 
     error, synapseNode = createNode(accountId, synapseUser)
     if error is not None:
         logger.error(error)
-        grayLogger.critical(error['error'], extra={'type': 'createNode', 'synapseUser':json.dumps(synapseUser)})
+        grayLogger.critical(error['error'], extra={'type': 'createNode', 'synapseUser':vbaRequest})
         updateVBAFail(vbaRequest)
         return
 
-    error, synapseSubnet = createSubnet(accountId, synapseNode)
+    error, synapseSubnet = createSubnet("wallet:"+walletId, synapseNode)
     if error is not None:
         logger.error(error)
-        grayLogger.critical(error['error'], extra={'type': 'createSubnet', 'synapseNode':json.dumps(synapseNode)})
+        grayLogger.critical(error['error'], extra={'type': 'createSubnet', 'synapseNode':vbaRequest})
         updateVBAFail(vbaRequest)
         return
 
