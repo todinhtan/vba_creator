@@ -49,19 +49,23 @@ args = {
 client = Client(**args)
 
 def getIdDoc(idDoc):
-    status, data = epiapiCli.get_govid(idDoc)
-    print(status)
-    print(data['uri'])
-    resp = get(data['uri'])
+    if 'http' in idDoc:
+        uri = idDoc
+    else:
+        status, data = epiapiCli.get_govid(idDoc)
+        uri = data['uri']
+    resp = get(uri)
     if resp.status_code != 200:
         return None
     return resp.content
 
 def getCoiDoc(coiDoc):
-    status, data = epiapiCli.get_govid(coiDoc)
-    print(status)
-    print(data['uri'])
-    resp = get(data['uri'])
+    if 'http' in coiDoc:
+        uri = coiDoc
+    else:
+        status, data = epiapiCli.get_govid(coiDoc)
+        uri = data['uri']
+    resp = get(uri)
     if resp.status_code != 200:
         return None
     return resp.content
