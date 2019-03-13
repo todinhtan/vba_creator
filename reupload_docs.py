@@ -6,9 +6,12 @@ from synapse_pay_rest import Subnet
 import logging
 from lib.epiapi import epiapi
 import urllib
-import json
+import json, os
 from requests import get
+from pymongo import MongoClient
 
+mongoClient = MongoClient(os.environ['VBA_DB_HOST'], int(os.environ['VBA_DB_PORT']))
+db = mongoClient.vba_service
 
 def createEpiApi(credentials):
     account_id = credentials.get('accountId', None)
@@ -80,7 +83,25 @@ def reupSynapseCoiDoc(userId, coiDoc):
         return None
     user.base_documents[0].add_physical_document(type='OTHER', mime_type='image/png', byte_stream=data)
 
+def getSubmittedAndValidDocRequests(collection):
+    vbaRequests = collection.find({'country': 'US', 'status': 'APPROVED', 'vbaData.status_doc.physical_doc': 'SUBMITTED|VALID'})
+    for req in vbaRequests:
+        yield req
 
+def findAndReupSynapseDoc():
+    for req in getSubmittedAndValidDocRequests(db.vbarequests):
+        vbaData = req.get('vbaData')
+        userId = vbaData.get('userId')
+        if userId is not None:
+            idDoc = req.get('idDoc')
+            coiDoc = req.get('coiDoc')
+            if idDoc is not None:
+                reupSynapseIdDoc(userId, idDoc)
+            if coiDoc is not None:
+                reupSynapseCoiDoc(userId, coiDoc)
+
+if __name__ == '__main__':
+    findAndReupSynapseDoc()
 # reupSynapseDoc('5c88784a5ac648006671721a',data)
 
 #TODO:
