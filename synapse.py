@@ -1,12 +1,9 @@
-import os, traceback
-from urllib.parse import urlparse
+import io, os, traceback
 import hashlib
 import urllib
 import json
-import hmac
 import time
-import requests
-from requests import get
+from requests import get,post
 from synapse_pay_rest.models.nodes import *
 from synapse_pay_rest import User
 from synapse_pay_rest import Client
@@ -16,15 +13,12 @@ import logging
 from lib.epiapi import epiapi
 import pinyin
 from pymongo import MongoClient
-import datetime
-from pymongo import MongoClient
 import threading
 import graypy
 import shutil
 
 
-file_path = 'NECONSENT.pdf'
-shop_file_path = 'amz_mainpage.png'
+# file_path = 'NECONSENT.pdf'
 
 grayLogger = logging.getLogger('graylog')
 grayLogger.setLevel(logging.CRITICAL)
@@ -39,15 +33,6 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
 
-def thumbalizr(url='', options={}):
-    embed_key = 'PAe08okrAkFIEtf4hOXMVyHah1rD3n' # replace it with you Embed API key
-    secret = '5GYu8keuUJQipiczNKW1G1G9F' # replace it with your Secret
-    query = 'url=' + urllib.parse.quote(url, safe='')
-
-    for key, value in options.items():
-        query += '&' + key + '=' + urllib.parse.quote(str(value), safe='')
-    token = hashlib.md5(query.encode('utf-8') + secret.encode('utf-8')).hexdigest()
-    return "https://api.thumbalizr.com/api/v1/embed/%s/%s/?%s" % (embed_key, token, query)
 
 def verifyEpiApiInputs(body):
     walletId = body.get('walletId', None)
@@ -213,11 +198,13 @@ def addBusinessDocument(user, base_document, data, walletId):
 
         virtual_document = base_document.add_virtual_document(type='OTHER', value=co_regid)
         base_document = virtual_document.base_document
-        #print('Virtual Doc ADDED!')
-        # file_path = wallet_id+'-coi.jpg'
-        http_code, docImage = epiapiCli.get_coi(data.get('coiDoc'), data.get('sessionId', None))
-        physical_document = base_document.add_physical_document(type='OTHER', mime_type='image/jpeg', byte_stream=docImage)
-        #print('COI ADDED!')
+
+        http_code, docImageInfo = epiapiCli.get_coi(data.get('idDoc'))
+        real_img_resp = get(docImageInfo['uri'])
+        if real_img_resp.status_code != 200:
+            return {'error': 'cannot download doc:' + data.get('idDoc')}
+        docImage = real_img_resp.content
+        base_document.add_physical_document(type='OTHER', mime_type='image/png', byte_stream=docImage)
         kwargs = {
             'email': walletId+'@sendwyre.com',
             'phone_number': '0086'+phone_number,
@@ -238,41 +225,59 @@ def addBusinessDocument(user, base_document, data, walletId):
             'address_country_code': address.get('country')
         }
         base_document2 = user.add_base_document(**kwargs)
-        user2 = base_document2.user
-        #print('ADDIITONAL BASE DOC ADDED!')
-        time.sleep(10)
-        # file_path = wallet_id+'-govid.jpg'
-        http_code, docImage = epiapiCli.get_govid(data.get('idDoc'), data.get('sessionId', None))
-        physical_document = base_document2.add_physical_document(type='GOVT_ID_INT', mime_type='image/png', byte_stream=docImage)
-        #print('LEG REP ID ADDED!')
+        http_code, docImageInfo = epiapiCli.get_govid(data.get('idDoc'))
+        real_img_resp = get(docImageInfo['uri'])
+        if real_img_resp.status_code != 200:
+            return {'error': 'cannot download doc:' + data.get('idDoc')}
+        docImage = real_img_resp.content
+        base_document2.add_physical_document(type='GOVT_ID_INT', mime_type='image/png', byte_stream=docImage)
         return None
     except Exception as e:
         logger.debug(traceback.format_exc())
         return {'error': str(e)}
 
 def get_shop_img(amz_id):
-    DRIVER = 'chromedriver'
-    driver = webdriver.Chrome(DRIVER)
+    # will get stuck when using phantomjs
     amzurl = 'https://www.amazon.com/s?merchant='+amz_id
-    #print(amzurl)
-    driver.get(amzurl)
-    screenshot = driver.save_screenshot(amz_id+'-shop.png')
-    driver.quit()
-    file_path = amz_id+'-shop.png'
-    return file_path
+    resp = post('http://{}:8081'.format(os.environ.get('WEB_CAPTURE_URL','localhost')), data={'url':amzurl}, headers={'Content-Type':'Application/Json'})
+    print('get_shop_img:'+str(resp.status_code))
+    if resp.status_code == 200:
+        return resp.content
+    return None
+
+def getConsent(accountSRN):
+    print(accountSRN)
+    accountId = accountSRN.split(":")[1]
+    file_path = {
+        "AC-LT8PTPBLEDA": "NECONSENT",
+        "AC-LRZYD3PTQF7": "BFCONSENT",
+        "AC-CBH3TFZRT3D": "DDCONSENT"
+    }.get(accountId,"NECONSENT") + ".pdf"
+    physical_document_name = accountId + ".pdf"
+    shutil.copyfile(file_path, physical_document_name)
+    return physical_document_name
 
 def addPhysicalDocument(base_document, data, accountId):
     try:
-        physical_document_name = accountId.split(":")[1] + ".pdf"
-        shutil.copyfile(file_path, physical_document_name)
+        physical_document_name = getConsent(accountId)
         base_document.add_physical_document(type='OTHER', file_path=physical_document_name) # Consent
         os.remove(physical_document_name)
-        base_document.add_physical_document(type='OTHER', mime_type='image/png', file_path=shop_file_path) # Shop Screengrab
+        shop_file_path = 'amz_mainpage.png'
+        shop_file_bytes = None
+        if len(data['merchantIds']) > 0:
+            shop_file_bytes = get_shop_img(data['merchantIds'][0]['merchantId'])
+        if shop_file_bytes is not None:
+            base_document.add_physical_document(type='OTHER', mime_type='image/png', byte_stream=shop_file_bytes) # Shop Screengrab
+        else:
+            base_document.add_physical_document(type='OTHER', mime_type='image/png', file_path=shop_file_path) # Shop Screengrab
         value = 'data:image/png;base64,SUQs=='
         base_document.add_physical_document(type='OTHER', value=value) # Blank Doc
 
-        # if is_business_bool == False:
-        http_code, docImage = epiapiCli.get_govid(data.get('idDoc'), data.get('sessionId', None))
+        http_code, docImageInfo = epiapiCli.get_govid(data.get('idDoc'))
+        real_img_resp = get(docImageInfo['uri'])
+        if real_img_resp.status_code != 200:
+            return {'error': 'cannot download doc:' + data.get('idDoc')}
+        docImage = real_img_resp.content
         physical_document = base_document.add_physical_document(type='GOVT_ID_INT', mime_type='image/png', byte_stream=docImage) # Government ID
         return None, physical_document.base_document
     except Exception as e:
@@ -281,8 +286,15 @@ def addPhysicalDocument(base_document, data, accountId):
 
 def createNode(srn, user):
     try:
+
+        accountId = srn.split(":")[1]
+        nickname = {
+                    "AC-LT8PTPBLEDA": "account:AC-B6TLMTQUEMC",
+                    "AC-LRZYD3PTQF7": "account:AC-FJW38ZBQJ9Y",
+                    "AC-CBH3TFZRT3D": "account:AC-L6TZ4R9EEBZ"
+        }.get(accountId,srn)
         required = {
-            'nickname': srn
+            'nickname': nickname
         }
         return None, SubaccountUsNode.create(user, **required)
     except Exception as e:
@@ -359,27 +371,23 @@ def updateVBAFail(req):
     db.vbarequests.update({'_id':req.get('_id')}, {'$set': {'status':'DENIED'}})
 
 def createVBA(vbaRequest):
-# from here
-#     threading.Timer(1 * 30, createVBA).start()
-#     for vbaRequest in getPendingRequest():
-    #print("vbaRequest: ")
-    #print(vbaRequest)
     walletId = vbaRequest.get('walletId')
     accountId = vbaRequest.get('accountId')
+    # verify wallet's vbaVerificationData is valid
     error, synapseUserData = verifyWalletVBA(walletId, vbaRequest)
     if error is not None:
         logger.error(error)
         grayLogger.critical(error['error'], extra={'type': 'verifyWalletVBA', 'vbaRequest':vbaRequest})
         updateVBAFail(vbaRequest)
         return
-
-    error, synapseUser = createSynapseUser(accountId, vbaRequest)
+    # create new synapse user for the wallet
+    error, synapseUser = createSynapseUser("wallet:"+walletId, vbaRequest)
     if error is not None:
         logger.error(error)
         grayLogger.critical(error['error'], extra={'type': 'createSynapseUser', 'vbaRequest':vbaRequest})
         updateVBAFail(vbaRequest)
         return
-
+    # add basis document which are basis contact information
     error, baseDocument = addBasisDocument(synapseUser, vbaRequest)
     if error is not None:
         logger.error(error)

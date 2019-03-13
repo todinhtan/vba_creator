@@ -15,6 +15,7 @@ class epiapi(object):
         self.api_secret = api_secret
 
     #authentication decorator. May raise ValueError if no json content is returned
+
     def authenticate_request(func):
         def wrap(self, *args, **kwargs):
             url, method, body = func(self, *args, **kwargs)
@@ -44,7 +45,7 @@ class epiapi(object):
                 url += '&sessionId={}'.format(sessionId)
             print(url)
             resp = request(method=method, url=url, params=params, data=None, json=None)
-            if resp.text is not None: #Wyre will always try to give an err body
+            if resp.content is not None: #Wyre will always try to give an err body
                 return resp.status_code, resp.content
             return 404, {}
         return wrap
@@ -108,23 +109,23 @@ class epiapi(object):
         body = { "status":status, reason:reason }
         return url, method, body
 
-    @authenticate_session
-    def get_govid(self, idDoc, sessionId):
+    @authenticate_request
+    def get_govid(self, idDoc):
         # {{host}}/v2/documents?ownerSrn={{authenticatedAs}}&sessionId={{sessionId}}
-        url = idDoc if "http" in idDoc else (self.api_url + '/document/' + idDoc + '/data')
+        url = idDoc if "http" in idDoc else (self.api_url + '/document/' + idDoc)
         print(url)
         method = 'GET'
         body = ''
-        return url, method, body, sessionId
+        return url, method, body
 
-    @authenticate_session
-    def get_coi(self, coiDoc, sessionId):
-        url = coiDoc if "http" in coiDoc else (self.api_url + '/document/' + coiDoc + '/data')
+    @authenticate_request
+    def get_coi(self, coiDoc):
+        url = coiDoc if "http" in coiDoc else (self.api_url + '/document/' + coiDoc)
         # url = "http://sino-us.com/UploadFiles/2013/5/30/201305301045590301.jpg"
         print(url)
         method = 'GET'
         body = ''
-        return url, method, body, sessionId
+        return url, method, body
 
     @authenticate_request3
     def upload_doc(self):

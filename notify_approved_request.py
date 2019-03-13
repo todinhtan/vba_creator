@@ -17,7 +17,7 @@ handler = graypy.GELFHandler(os.environ['GRAYLOG_HOST'], int(os.environ['GRAYLOG
 grayLogger.addHandler(handler)
 
 def getFailedToApproveRequests(collection):
-    vbaRequests = collection.find({'status': {'$nin': ['APPROVED', 'PENDING', 'WAITING_FOR_APPROVAL']}, 'notified': {'$ne': True}})
+    vbaRequests = collection.find({'status': 'APPROVED', 'notified': {'$ne': True}})
     for req in vbaRequests:
         yield req
 
@@ -34,6 +34,7 @@ def mail(subject, message, sender, recipients):
 
         msg.attach(body)
 
+        # s = SMTP('localhost')
         s = SMTP('smtp.mandrillapp.com: 587')
         s.starttls()
         s.login('x-border fintech product', 'TIWBeA4tFFiIk8vmBvy9EQ')
@@ -43,7 +44,8 @@ def mail(subject, message, sender, recipients):
         return True
     except SMTPException as err:
         print('Failed to send email')
-        grayLogger.critical("unable to send email", extra={'type': 'email_notify_not_approved_request', 'vbaRequest':message, 'error': err})
+        print(err)
+        grayLogger.critical("unable to send email", extra={'type': 'email_notify_approved_request', 'vbaRequest':message, 'error': err})
         return False
 
 def process():
@@ -56,7 +58,7 @@ def process():
 
         sender = 'noreply@epiapi.com'
         recipients = ['wallets@epiapi.com']
-        result = mail('Failed to approve VBA request', msg, sender, recipients)
+        result = mail('Succeed to approve VBA request', msg, sender, recipients)
         if result is True:
             markNotified(req.get('_id'), db.vbarequests)
 
