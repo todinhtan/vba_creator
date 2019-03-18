@@ -239,7 +239,7 @@ def addBusinessDocument(user, base_document, data, walletId):
 def get_shop_img(amz_id):
     # will get stuck when using phantomjs
     amzurl = 'https://www.amazon.com/s?merchant='+amz_id
-    resp = post('http://{}:8081'.format(os.environ.get('WEB_CAPTURE_URL','localhost')), data={'url':amzurl}, headers={'Content-Type':'Application/Json'})
+    resp = post('http://{}:8081'.format(os.environ.get('WEB_CAPTURE_URL','localhost')), data=json.dumps({ "url":amzurl }), headers={'Content-Type':'application/json'})
     print('get_shop_img:'+str(resp.status_code))
     if resp.status_code == 200:
         return resp.content

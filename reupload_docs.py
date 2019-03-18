@@ -28,19 +28,26 @@ def createEpiApi(credentials):
     # "ipWhitelist": [],
     # "destSrnWhitelist": [],
     # "secretKey": "SK-NA4H3GDQ-GZG7Y9VU-D4GY7P96-97PQLUNF"
+
+    # epiapiCli = createEpiApi({
+    #     "accountId": "account:AC-6TBVQL9WHWQ",
+    #     "apiKey": "AK-JNZFUC3D-N4R3NPFP-Y8L6F6ER-ZBFG2PMW",
+    #     "apiSecKey": "SK-CLFUJHHW-G7F4Y4DZ-WDTHNJP6-EGBRDLF4"
+    # })
+
 epiapiCli = createEpiApi({
-    "accountId": "account:AC-6TBVQL9WHWQ",
-    "apiKey": "AK-JNZFUC3D-N4R3NPFP-Y8L6F6ER-ZBFG2PMW",
-    "apiSecKey": "SK-CLFUJHHW-G7F4Y4DZ-WDTHNJP6-EGBRDLF4"
+    "accountId": os.environ['EPIAPI_ADMIN_ACCOUNTID'],
+    "apiKey": os.environ['EPIAPI_ADMIN_APIKEY'],
+    "apiSecKey": os.environ['EPIAPI_ADMIN_SECRET']
 })
 myip = get('https://api.ipify.org').text
 args = {
-    'client_id': "client_id_qMEjYi61UHAomcpyDQ0xbdOKkrt7ZJuVlBN5RWPz", # your client id
-    'client_secret': "client_secret_cvEn54gW0LSmNXwH26bF9J3xAuhzskGKBZPaeVfT", # your client secret
+    'client_id': os.environ['SYNAPSE_LIVE_ID'], # your client id
+    'client_secret': os.environ['SYNAPSE_LIVE_SECRET'], # your client secret
     'fingerprint': '5af084654688ae0043d84603',
     'ip_address': myip, # user's IP
-    'development_mode': True, # (optional) default False
-    'logging': True # (optional) default False # (optional) logs to stdout if True
+    'development_mode': False if os.environ['SYNAPSE_ENV'] == 'production' else True, # (optional) default False
+    'logging': bool(os.environ['ON_DEBUG']) # (optional) default False # (optional) logs to stdout if True
 }
 #print("synapse environment:\n")
 #print(args)
@@ -94,15 +101,18 @@ def getSubmittedAndValidDocRequests(collection):
 
 def findAndReupSynapseDoc():
     for req in getSubmittedAndValidDocRequests(db.vbarequests):
-        vbaData = req.get('vbaData')
-        userId = vbaData.get('userId')
-        if userId is not None:
-            idDoc = req.get('idDoc')
-            coiDoc = req.get('coiDoc')
-            if idDoc is not None:
-                reupSynapseIdDoc(userId, idDoc)
-            if coiDoc is not None:
-                reupSynapseCoiDoc(userId, coiDoc)
+        try:
+            vbaData = req.get('vbaData')
+            userId = vbaData.get('userId')
+            if userId is not None:
+                idDoc = req.get('idDoc')
+                coiDoc = req.get('coiDoc')
+                if idDoc is not None:
+                    reupSynapseIdDoc(userId, idDoc)
+                if coiDoc is not None:
+                    reupSynapseCoiDoc(userId, coiDoc)
+        except:
+            pass
 
 if __name__ == '__main__':
     findAndReupSynapseDoc()

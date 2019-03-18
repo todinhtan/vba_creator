@@ -36,7 +36,7 @@ def mail(subject, message, sender, recipients):
 
         s = SMTP('smtp.mandrillapp.com: 587')
         s.starttls()
-        s.login('x-border fintech product', 'TIWBeA4tFFiIk8vmBvy9EQ')
+        s.login('x-border fintech product', os.environ['MANDRILL_SEC_KEY'])
         s.sendmail(sender, ', '.join(recipients), msg.as_string())
         s.quit()
         print('Successfully send mail')
