@@ -14,8 +14,8 @@ from PIL import Image
 from PIL import ImageDraw
 from PIL import ImageFont
 
-# mongoClient = MongoClient(os.environ['VBA_DB_HOST'], int(os.environ['VBA_DB_PORT']))
-mongoClient = MongoClient('13.229.119.114', 27017)
+mongoClient = MongoClient(os.environ['VBA_DB_HOST'], int(os.environ['VBA_DB_PORT']))
+# mongoClient = MongoClient('13.229.119.114', 27017)
 db = mongoClient.vba_service
 
 myip = get('https://api.ipify.org').text
@@ -61,7 +61,7 @@ def process():
             img.paste(signatureImg, (200, 600))
 
             userId = doc.get('userId')
-            
+
             img.save('{}.pdf'.format(userId))
 
             with open('{}.pdf'.format(userId), mode='rb') as file: # b is important -> binary
