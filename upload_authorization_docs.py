@@ -57,7 +57,7 @@ def process():
             draw.text((130, 430), 'County: {}'.format(doc.get('address').get('country')), (0,0,0), font=font)
 
             # attach signature
-            signatureImg = Image.open('AC-84QHVB3CPW9.png')
+            signatureImg = Image.open('{}.png'.format(doc.get('adminAccountId')))
             img.paste(signatureImg, (200, 600))
 
             userId = doc.get('userId')
