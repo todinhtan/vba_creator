@@ -70,7 +70,8 @@ def process():
                 user.base_documents[0].add_physical_document(type='OTHER', mime_type='application/pdf', byte_stream=fileContent)
 
             os.remove('{}.pdf'.format(userId))
-        except:
+        except Exception as e:
+            print(e)
             pass
 
 
