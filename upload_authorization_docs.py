@@ -102,7 +102,7 @@ def process():
             draw.text((420, curHeight + 180), doc.get('ethnicity'), (0,0,0), font=font)
 
             draw.text((140, curHeight + 220), 'Date of birth:', (0,0,0), font=boldFont)
-            draw.text((420, curHeight + 220), datetime.utcfromtimestamp(doc.get('dob') / 1400).strftime('%Y-%m-%d %H:%M:%S'), (0,0,0), font=font)
+            draw.text((420, curHeight + 220), doc.get('dobString'), (0,0,0), font=font)
 
             draw.text((140, curHeight + 260), 'Citizen ID Number:', (0,0,0), font=boldFont)
             draw.text((420, curHeight + 260), doc.get('citizenIdNumber'), (0,0,0), font=font)
