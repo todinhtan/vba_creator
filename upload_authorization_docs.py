@@ -108,15 +108,14 @@ def process():
             draw.text((420, curHeight + 260), doc.get('citizenIdNumber'), (0,0,0), font=font)
 
             draw.text((140, curHeight + 300), 'Address:', (0,0,0), font=boldFont)
-            street1 = pinyin.get(doc.get('address').get('street1'), format="strip", delimiter=" ")
-            street2 = pinyin.get(doc.get('address').get('street2'), format="strip", delimiter=" ")
+            street1 = doc.get('address').get('street1')
+            street2 = doc.get('address').get('street2')
             city = doc.get('address').get('city')
             state = doc.get('address').get('state')
             postalCode = doc.get('address').get('postalCode')
             country = doc.get('address').get('country')
             address = "{} {} {} {}".format(city, state, postalCode, country)
 
-            address = pinyin.get(address, format="strip", delimiter=" ")
             draw.text((420, curHeight + 300), street1, (0,0,0), font=font)
             paddingForStreet2 = 0
             if street2 != "":
