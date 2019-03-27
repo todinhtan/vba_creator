@@ -41,12 +41,19 @@ def getPendingAuthorizationDocs(collection):
 
 def process():
     threading.Timer(60, process).start()
+
+    # open images
+    logo = Image.open('epiapi_logo.png')
+    box = Image.open('box.png')
+
+    # get fonts
+    font = ImageFont.truetype("fonts/Arial_Unicode.ttf", 28)
+    boldFont = ImageFont.truetype("fonts/Arial_Unicode_Bold.ttf", 28)
+    italicFont = ImageFont.truetype("fonts/Arial_Unicode_Italic.ttf", 26)
+    heading = ImageFont.truetype("fonts/Arial_Unicode.ttf", 50)
+
     for doc in getPendingAuthorizationDocs(db.authorization_docs):
         try:
-            font = ImageFont.truetype("fonts/Arial_Unicode.ttf", 28)
-            boldFont = ImageFont.truetype("fonts/Arial_Unicode_Bold.ttf", 28)
-            italicFont = ImageFont.truetype("fonts/Arial_Unicode_Italic.ttf", 26)
-            heading = ImageFont.truetype("fonts/Arial_Unicode.ttf", 50)
             img = Image.new('RGB', (1240,1754), (255,255,255))
             draw = ImageDraw.Draw(img)
 
@@ -54,7 +61,6 @@ def process():
             draw.text((140, 80), 'EPIAPI - ID TRANSLATION', (0,0,0), font=heading)
 
             # logo
-            logo = Image.open('epiapi_logo.png')
             img.paste(logo, (960, 40))
 
             # document info
@@ -66,7 +72,6 @@ def process():
             draw.text((380, 350), doc.get('userId'), (0,0,0), font=font)
 
             # box
-            box = Image.open('box.png')
             img.paste(box, (130, 425))
             # text with box
             draw.text((160, 450), 'Epiapi verifies the below information in relation to the userId provided above.', (0,0,0), font=italicFont)
@@ -81,14 +86,14 @@ def process():
                 idDocResp = get(idDocUri)
                 if idDocResp.status_code == 200:
                     basewidth = 580
-                    idDocImg = Image.open(BytesIO(idDocResp.content))
-                    w, h = idDocImg.size
+                    with Image.open(BytesIO(idDocResp.content)) as idDocImg:
+                        w, h = idDocImg.size
 
-                    wpercent = (basewidth / float(w))
-                    hsize = int((float(h) * float(wpercent)))
-                    idDocImg = idDocImg.resize((basewidth, hsize), Image.ANTIALIAS)
-                    img.paste(idDocImg, (140, 700))
-                    curHeight += (hsize + 40)
+                        wpercent = (basewidth / float(w))
+                        hsize = int((float(h) * float(wpercent)))
+                        idDocImg = idDocImg.resize((basewidth, hsize), Image.ANTIALIAS)
+                        img.paste(idDocImg, (140, 700))
+                        curHeight += (hsize + 40)
 
             draw.text((140, curHeight), 'ENGLISH TRANSLATION', (0, 0, 0), font=ImageFont.truetype("fonts/Arial_Unicode_Bold.ttf", 40))
 
@@ -141,12 +146,21 @@ def process():
 
             os.remove('{}.pdf'.format(userId))
 
+            # close signature
+            signatureImg.close()
+
+            # close img
+            img.close()
+
             # mark to DONE after upload
             db.authorization_docs.update({'walletId':doc.get('walletId')}, {'$set':{'status':'DONE'}})
         except Exception as e:
             print(e)
             pass
 
+    # close images
+    logo.close()
+    box.close()
 
 if __name__ == '__main__':
     process()
