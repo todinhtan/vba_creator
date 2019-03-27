@@ -425,6 +425,11 @@ def createVBA(vbaRequest):
 
     vbaRequest['vbaData'], status = fromSynapseResponse(synapseUser, synapseNode, synapseSubnet)
     updateVBA(vbaRequest,'WAITING_FOR_APPROVAL')
+    marketWalletAsPreApproved(walletId)
+
+def marketWalletAsPreApproved(walletId):
+    http_status, info = epiapiCli.update_wallet_status(walletId, 'PRE_APPROVED')
+    return http_status, info
 
 def checkAndUpdateVBA(vbaRequest):
     userId = vbaRequest.get('vbaData').get('userId')
