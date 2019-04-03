@@ -15,7 +15,7 @@ grayLogger.setLevel(logging.CRITICAL)
 handler = graypy.GELFHandler(os.environ['GRAYLOG_HOST'], int(os.environ['GRAYLOG_PORT']))
 grayLogger.addHandler(handler)
 
-mongoClient = MongoClient('13.229.119.114', 27017)
+mongoClient = MongoClient(os.environ['VBA_DB_HOST'], int(os.environ['VBA_DB_PORT']))
 db = mongoClient.vba_service
 
 myip = get('https://api.ipify.org').text
@@ -25,7 +25,7 @@ args = {
     'fingerprint': '5af084654688ae0043d84603',
     'ip_address': myip, # user's IP
     'development_mode': False if os.environ['SYNAPSE_ENV'] == 'production' else True, # (optional) default False
-    # 'logging': bool(os.environ['ON_DEBUG']) # (optional) default False # (optional) logs to stdout if True
+    'logging': bool(os.environ['ON_DEBUG']) # (optional) default False # (optional) logs to stdout if True
 }
 
 client = Client(**args)
