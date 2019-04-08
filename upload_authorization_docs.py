@@ -142,7 +142,7 @@ def process():
             with open('{}.pdf'.format(userId), mode='rb') as file: # b is important -> binary
                 fileContent = file.read()
                 user = User.by_id(client, userId)
-                user.base_documents[0].add_physical_document(type='OTHER', mime_type='application/pdf', byte_stream=fileContent)
+                user.base_documents[0].add_physical_document(type='AUTHORIZATION', mime_type='application/pdf', byte_stream=fileContent)
 
             os.remove('{}.pdf'.format(userId))
 
