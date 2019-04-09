@@ -132,18 +132,11 @@ def addBasisDocument(user, data):
 
         address_city = pinyin.get(address.get('city'), format="strip", delimiter=" ")
         address_city = address_city if len(address_city.split()) == len(address.get('city')) else address.get('city')
-        if data.get('isBusiness') == True:
-            dateOfBirth = data.get("dateOfEstablishment")
-        else:
-            dateOfBirth = data.get("dateOfBirth")
 
+        dateOfBirth = data.get("dateOfBirth")
         day = time.strftime("%d", time.localtime(int(dateOfBirth/1000)))
         month = time.strftime("%m", time.localtime(int(dateOfBirth/1000)))
         year = time.strftime("%Y", time.localtime(int(dateOfBirth/1000)))
-        #print("nameCn", data.get('nameCn'))
-        # if data.get('isBusiness') == True:
-        #     name = pinyin.get(data.get("companyNameCn"), format="strip", delimiter=" ") if (data.get('companyNameCn', None) != '' and data.get('companyNameCn', None) != None) else data.get("companyNameEn")
-        # else:
         name = pinyin.get(data.get("nameCn"), format="strip", delimiter=" ") if (data.get('nameCn', None) != '' and data.get('nameCn', None) != None) else data.get("nameEn")
         options = {
             'email': data.get('email'),
@@ -181,7 +174,7 @@ def addBusinessDocument(user, base_document, data, walletId):
         co_regid = data.get('registrationNumber')
         phone_number = data.get('phoneNumber')
         alias = data.get('shopName')
-        legal_name_ind = pinyin.get(data.get("nameCn"), format="strip", delimiter=" ") if (data.get('nameCn', None) != '' and data.get('nameCn', None) != None) else data.get("nameEn")
+        legal_name_ind = pinyin.get(data.get("companyNameCn"), format="strip", delimiter=" ") if (data.get('companyNameCn', None) != '' and data.get('companyNameCn', None) != None) else data.get("companyNameEn")
         address = data.get('address')
         addressstreetstrings = [address.get("street1"),address.get("street2")]
         addressstreetstrings = ' '.join(filter(None, addressstreetstrings))
@@ -194,18 +187,18 @@ def addBusinessDocument(user, base_document, data, walletId):
         address_city = pinyin.get(address.get('city'), format="strip", delimiter=" ")
         address_city = address_city if len(address_city) == len(address.get('city')) else address.get('city')
 
-        dateOfBirth = data.get("dateOfEstablishment")
-        day = time.strftime("%d", time.localtime(int(dateOfBirth/1000)))
-        month = time.strftime("%m", time.localtime(int(dateOfBirth/1000)))
-        year = time.strftime("%Y", time.localtime(int(dateOfBirth/1000)))
+        dateOfEstablishment = data.get("dateOfEstablishment")
+        day = time.strftime("%d", time.localtime(int(dateOfEstablishment/1000)))
+        month = time.strftime("%m", time.localtime(int(dateOfEstablishment/1000)))
+        year = time.strftime("%Y", time.localtime(int(dateOfEstablishment/1000)))
 
         virtual_document = base_document.add_virtual_document(type='OTHER', value=co_regid)
         base_document = virtual_document.base_document
 
-        http_code, docImageInfo = epiapiCli.get_coi(data.get('idDoc'))
+        http_code, docImageInfo = epiapiCli.get_coi(data.get('coiDoc'))
         real_img_resp = get(docImageInfo['uri'])
         if real_img_resp.status_code != 200:
-            return {'error': 'cannot download doc:' + data.get('idDoc')}
+            return {'error': 'cannot download doc:' + data.get('coiDoc')}
         docImage = real_img_resp.content
         base_document.add_physical_document(type='OTHER', mime_type='image/png', byte_stream=docImage)
         kwargs = {
@@ -228,12 +221,6 @@ def addBusinessDocument(user, base_document, data, walletId):
             'address_country_code': address.get('country')
         }
         base_document2 = user.add_base_document(**kwargs)
-        http_code, docImageInfo = epiapiCli.get_govid(data.get('idDoc'))
-        real_img_resp = get(docImageInfo['uri'])
-        if real_img_resp.status_code != 200:
-            return {'error': 'cannot download doc:' + data.get('idDoc')}
-        docImage = real_img_resp.content
-        base_document2.add_physical_document(type='GOVT_ID_INT', mime_type='image/png', byte_stream=docImage)
         return None
     except Exception as e:
         logger.debug(traceback.format_exc())
