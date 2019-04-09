@@ -138,10 +138,10 @@ def addBasisDocument(user, data):
         month = time.strftime("%m", time.localtime(int(dateOfBirth/1000)))
         year = time.strftime("%Y", time.localtime(int(dateOfBirth/1000)))
         #print("nameCn", data.get('nameCn'))
-        if data.get('isBusiness') == True:
-            name = pinyin.get(data.get("companyNameCn"), format="strip", delimiter=" ") if (data.get('companyNameCn', None) != '' and data.get('companyNameCn', None) != None) else data.get("companyNameEn")
-        else:
-            name = pinyin.get(data.get("nameCn"), format="strip", delimiter=" ") if (data.get('nameCn', None) != '' and data.get('nameCn', None) != None) else data.get("nameEn")
+        # if data.get('isBusiness') == True:
+        #     name = pinyin.get(data.get("companyNameCn"), format="strip", delimiter=" ") if (data.get('companyNameCn', None) != '' and data.get('companyNameCn', None) != None) else data.get("companyNameEn")
+        # else:
+        name = pinyin.get(data.get("nameCn"), format="strip", delimiter=" ") if (data.get('nameCn', None) != '' and data.get('nameCn', None) != None) else data.get("nameEn")
         options = {
             'email': data.get('email'),
             'phone_number': data.get('phoneNumber'),
@@ -178,7 +178,7 @@ def addBusinessDocument(user, base_document, data, walletId):
         co_regid = data.get('registrationNumber')
         phone_number = data.get('phoneNumber')
         alias = data.get('shopName')
-        legal_name_ind = pinyin.get(data.get("companyNameCn"), format="strip", delimiter=" ") if (data.get('companyNameCn', None) != '' and data.get('companyNameCn', None) != None) else data.get("companyNameEn")
+        legal_name_ind = pinyin.get(data.get("nameCn"), format="strip", delimiter=" ") if (data.get('nameCn', None) != '' and data.get('nameCn', None) != None) else data.get("nameEn")
         address = data.get('address')
         addressstreetstrings = [address.get("street1"),address.get("street2")]
         addressstreetstrings = ' '.join(filter(None, addressstreetstrings))
