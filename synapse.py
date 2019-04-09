@@ -132,8 +132,11 @@ def addBasisDocument(user, data):
 
         address_city = pinyin.get(address.get('city'), format="strip", delimiter=" ")
         address_city = address_city if len(address_city.split()) == len(address.get('city')) else address.get('city')
+        if data.get('isBusiness') == True:
+            dateOfBirth = data.get("dateOfEstablishment")
+        else:
+            dateOfBirth = data.get("dateOfBirth")
 
-        dateOfBirth = data.get("dateOfBirth")
         day = time.strftime("%d", time.localtime(int(dateOfBirth/1000)))
         month = time.strftime("%m", time.localtime(int(dateOfBirth/1000)))
         year = time.strftime("%Y", time.localtime(int(dateOfBirth/1000)))
@@ -191,7 +194,7 @@ def addBusinessDocument(user, base_document, data, walletId):
         address_city = pinyin.get(address.get('city'), format="strip", delimiter=" ")
         address_city = address_city if len(address_city) == len(address.get('city')) else address.get('city')
 
-        dateOfBirth = data.get("dateOfBirth")
+        dateOfBirth = data.get("dateOfEstablishment")
         day = time.strftime("%d", time.localtime(int(dateOfBirth/1000)))
         month = time.strftime("%m", time.localtime(int(dateOfBirth/1000)))
         year = time.strftime("%Y", time.localtime(int(dateOfBirth/1000)))
