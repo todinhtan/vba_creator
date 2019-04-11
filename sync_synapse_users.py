@@ -9,6 +9,9 @@ import logging
 import json, os
 from requests import get
 from pymongo import MongoClient
+import schedule
+import time
+# CRON_TIME=12:00 SYNAPSE_ENV=production SYNAPSE_LIVE_ID=client_id_xxx SYNAPSE_LIVE_SECRET=client_secret_xxx EPIAPI_ADMIN_SECRET=SK-xxx EPIAPI_ADMIN_ACCOUNTID=AC-xxx EPIAPI_ADMIN_APIKEY=AK-xxx VBA_DB_HOST=13.251.27.48 VBA_DB_PORT=27028 ON_DEBUG=False python3 sync_synapse_users.py
 
 grayLogger = logging.getLogger('graylog')
 grayLogger.setLevel(logging.CRITICAL)
@@ -56,5 +59,10 @@ def process():
             grayLogger.critical('user not found', extra={'type': 'sync_synapse_users', 'userId': userId})
             print('user not found by id: {}'.format(userId))
 
+
+
 if __name__ == '__main__':
-    process()
+    schedule.every().day.at(os.environ['CRON_TIME']).do(process)
+    while 1:
+        schedule.run_pending()
+        time.sleep(1)
