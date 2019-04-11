@@ -260,6 +260,27 @@ def process():
                 merchantId = merchantIds[0].get('merchantId')
                 if merchantId is not None:
                     reupAMZCapturedImg(userId,merchantId)
+        elif docType == 'basic':
+            user = User.by_id(client, userId, 'yes')
+            userData = pendingDoc.get('userData')
+            document = user.base_documents[0]
+            payload = {
+                'documents': [{
+                    'id': document.id,
+                    'email': userData.get('email'),
+                    'phone_number': userData.get('phone_number'),
+                    'ip': userData.get('ip'),
+                    'address_street': userData.get('address_street'),
+                    'address_city': userData.get('address_city'),
+                    'address_subdivision': userData.get('address_subdivision'),
+                    'address_postal_code': userData.get('address_postal_code'),
+                    'address_country_code': userData.get('address_country_code'),
+                    'day': userData.get('day'),
+                    'month': userData.get('month'),
+                    'year': userData.get('year'),
+                }]
+            }
+            client.users.update(userId, payload)
 
         # mark record status = DONE after processing
         markDoneScheduledDoc(_id)
