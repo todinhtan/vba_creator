@@ -70,29 +70,49 @@ def getCoiDoc(coiDoc):
     return resp.content
 
 def reupSynapseIdDoc(userId, idDoc):
-    user = User.by_id(client, userId)
+    user = User.by_id(client, userId, 'yes')
     data = getIdDoc(idDoc)
     if data is None:
         print("cannot upload: " + idDoc)
         return None
+    
+    for doc in user.base_documents:
+        if doc.email[-10:] != 'epiapi.com' and doc.email[-12:] != 'sendwyre.com':
+            # delete old
+            for subDoc in doc.physical_documents:
+                if subDoc.type == 'GOVT_ID_INT':
+                    args = {
+                        'physical_documents': [{
+                            'id': subDoc.id,
+                            'document_type':'DELETE_DOCUMENT',
+                            'document_value':'data:image/gif;base64,SUQs=='
+                        }]
+                    }
+                    doc.update(**args)
+
+            # add new
+            doc.add_physical_document(type='GOVT_ID_INT', mime_type='image/png', byte_stream=data)
     # get data of base docs as an array
     # iterate to find individual base doc if base_documents[i].email[-10:] != 'epiapi.com' and base_documents[i].email[-12:] != 'sendwyre.com'
     # idv_base_doc = base_documents[i]
     # use idv_base_doc for idv_base_doc.add_physical_document(type='GOVT_ID_INT', mime_type='image/png', byte_stream=data)
-    user.base_documents[0].add_physical_document(type='GOVT_ID_INT', mime_type='image/png', byte_stream=data)
 
 def reupSynapseCoiDoc(userId, coiDoc):
-    user = User.by_id(client, userId)
+    user = User.by_id(client, userId, 'yes')
     data = getIdDoc(coiDoc)
     if data is None:
         print("cannot upload: " + coiDoc)
         return None
 
+    for doc in user.base_documents:
+        if doc.email[-10:] == 'epiapi.com' or doc.email[-12:] == 'sendwyre.com':
+            # add new
+            doc.add_physical_document(type='OTHER', mime_type='image/png', byte_stream=data)
+
     # get data of base docs as an array
     # iterate to find company base doc if base_documents[i].email[-10:] == 'epiapi.com' or base_documents[i].email[-12:] == 'sendwyre.com'
     # comp_base_doc = base_documents[i]
     # use comp_base_doc for comp_base_doc.add_physical_document(type='OTHER', mime_type='image/png', byte_stream=data)
-    user.base_documents[0].add_physical_document(type='OTHER', mime_type='image/png', byte_stream=data)
 
 def uploadAuthorizedDoc(userId, doc):
     # open images
@@ -190,9 +210,25 @@ def uploadAuthorizedDoc(userId, doc):
 
     with open('{}.pdf'.format(userId), mode='rb') as file: # b is important -> binary
         fileContent = file.read()
-        user = User.by_id(client, userId)
+        user = User.by_id(client, userId, 'yes')
+
+        for doc in user.base_documents:
+            if doc.email[-10:] != 'epiapi.com' and doc.email[-12:] != 'sendwyre.com':
+                # delete old
+                for subDoc in doc.physical_documents:
+                    if subDoc.type == 'AUTHORIZATION':
+                        args = {
+                            'physical_documents': [{
+                                'id': subDoc.id,
+                                'document_type':'DELETE_DOCUMENT',
+                                'document_value':'data:image/gif;base64,SUQs=='
+                            }]
+                        }
+                        doc.update(**args)
+
+                # add new
+                doc.add_physical_document(type='AUTHORIZATION', mime_type='application/pdf', byte_stream=fileContent)
         # find base doc of individual same as function reupSynapseIdDoc
-        user.base_documents[0].add_physical_document(type='AUTHORIZATION', mime_type='application/pdf', byte_stream=fileContent)
 
     os.remove('{}.pdf'.format(userId))
 
@@ -219,13 +255,18 @@ def getAMZImg(amz_id):
     return None
 
 def reupAMZCapturedImg(userId, amz_id):
-    user = User.by_id(client, userId)
+    user = User.by_id(client, userId, 'yes')
     data = getAMZImg(amz_id)
     if data is None:
         print("cannot upload: " + amz_id)
         return None
+
+    for doc in user.base_documents:
+        if doc.email[-10:] == 'epiapi.com' or doc.email[-12:] == 'sendwyre.com':
+            # add new
+            doc.add_physical_document(type='OTHER', mime_type='image/png', byte_stream=data)
+
     # find company base doc same as function reupSynapseCoiDoc
-    user.base_documents[0].add_physical_document(type='OTHER', mime_type='image/png', byte_stream=data)
 
 def markDoneScheduledDoc(_id):
     db.scheduled_reup_docs.update({'_id':_id}, {'$set':{'status':'DONE'}})
@@ -271,27 +312,48 @@ def process():
                 merchantId = merchantIds[0].get('merchantId')
                 if merchantId is not None:
                     reupAMZCapturedImg(userId,merchantId)
-        elif docType == 'basic':
+        elif docType == 'basic': # individual basic
             user = User.by_id(client, userId, 'yes')
             userData = pendingDoc.get('userData')
-            document = user.base_documents[0]
-            payload = {
-                'documents': [{
-                    'id': document.id,
-                    'email': userData.get('email'),
-                    'phone_number': userData.get('phone_number'),
-                    'ip': userData.get('ip'),
-                    'address_street': userData.get('address_street'),
-                    'address_city': userData.get('address_city'),
-                    'address_subdivision': userData.get('address_subdivision'),
-                    'address_postal_code': userData.get('address_postal_code'),
-                    'address_country_code': userData.get('address_country_code'),
-                    'day': userData.get('day'),
-                    'month': userData.get('month'),
-                    'year': userData.get('year'),
-                }]
-            }
-            client.users.update(userId, payload)
+            for document in user.base_documents:
+                if document.email[-10:] != 'epiapi.com' and document.email[-12:] != 'sendwyre.com':
+                    args = {
+                        'email': userData.get('email'),
+                        'phone_number': userData.get('phone_number'),
+                        'ip': userData.get('ip'),
+                        'address_street': userData.get('address_street'),
+                        'address_city': userData.get('address_city'),
+                        'address_subdivision': userData.get('address_subdivision'),
+                        'address_postal_code': userData.get('address_postal_code'),
+                        'address_country_code': userData.get('address_country_code'),
+                        'day': userData.get('day'),
+                        'month': userData.get('month'),
+                        'year': userData.get('year'),
+                    }
+
+                    # update document
+                    document.update(**args)
+        elif docType == 'company_basic': # company basic
+            user = User.by_id(client, userId, 'yes')
+            userData = pendingDoc.get('userData')
+            for document in user.base_documents:
+                if document.email[-10:] == 'epiapi.com' or document.email[-12:] == 'sendwyre.com':
+                    args = {
+                        'email': userData.get('email'),
+                        'phone_number': userData.get('phone_number'),
+                        'ip': userData.get('ip'),
+                        'address_street': userData.get('address_street'),
+                        'address_city': userData.get('address_city'),
+                        'address_subdivision': userData.get('address_subdivision'),
+                        'address_postal_code': userData.get('address_postal_code'),
+                        'address_country_code': userData.get('address_country_code'),
+                        'day': userData.get('day'),
+                        'month': userData.get('month'),
+                        'year': userData.get('year'),
+                    }
+
+                    # update document
+                    document.update(**args)
 
         # mark record status = DONE after processing
         markDoneScheduledDoc(_id)
