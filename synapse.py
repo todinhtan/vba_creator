@@ -165,13 +165,12 @@ def addBasisDocument(user, data):
         logger.debug(traceback.format_exc())
         return {'error': str(e)}, None
 
-def addBusinessDocument(user, base_document, data, walletId):
+def addBusinessDocument(user, data, walletId):
     try:
         if data.get('isBusiness') == True:
             time.sleep(3)
         else:
-            return None
-        co_regid = data.get('registrationNumber')
+            return None, None
         phone_number = data.get('phoneNumber')
         alias = data.get('shopName')
         legal_name_ind = pinyin.get(data.get("companyNameCn"), format="strip", delimiter=" ") if (data.get('companyNameCn', None) != '' and data.get('companyNameCn', None) != None) else data.get("companyNameEn")
@@ -213,18 +212,10 @@ def addBusinessDocument(user, base_document, data, walletId):
             # 'address_country_code': address_country_code
             'address_country_code': address.get('country')
         }
-        base_document_company = user.add_base_document(**kwargs)
-        http_code, docImageInfo = epiapiCli.get_coi(data.get('coiDoc'))
-        real_img_resp = get(docImageInfo['uri'])
-        if real_img_resp.status_code != 200:
-            return {'error': 'cannot download doc:' + data.get('coiDoc')}
-        docImage = real_img_resp.content
-        base_document_company.add_physical_document(type='OTHER', mime_type='image/png', byte_stream=docImage)
-        base_document_company.add_virtual_document(type='OTHER', value=co_regid)
-        return None
+        return None, user.add_base_document(**kwargs)
     except Exception as e:
         logger.debug(traceback.format_exc())
-        return {'error': str(e)}
+        return {'error': str(e)}, None
 
 def get_shop_img(amz_id):
     # will get stuck when using phantomjs
@@ -247,32 +238,49 @@ def getConsent(accountSRN):
     shutil.copyfile(file_path, physical_document_name)
     return physical_document_name
 
-def addPhysicalDocument(base_document, data, accountId):
+def addPhysicalDocument(base_document, business_document, data, accountId):
     try:
-        physical_document_name = getConsent(accountId)
-        base_document.add_physical_document(type='OTHER', file_path=physical_document_name) # Consent
-        os.remove(physical_document_name)
+        consent_doc = getConsent(accountId)
         shop_file_path = 'amz_mainpage.png'
         shop_file_bytes = None
         if len(data['merchantIds']) > 0:
             shop_file_bytes = get_shop_img(data['merchantIds'][0]['merchantId'])
-        if shop_file_bytes is not None:
-            base_document.add_physical_document(type='OTHER', mime_type='image/png', byte_stream=shop_file_bytes) # Shop Screengrab
-        else:
-            base_document.add_physical_document(type='OTHER', mime_type='image/png', file_path=shop_file_path) # Shop Screengrab
-        value = 'data:image/png;base64,SUQs=='
-        base_document.add_physical_document(type='OTHER', value=value) # Blank Doc
+        blank_sale_doc = 'data:image/png;base64,SUQs=='
 
-        http_code, docImageInfo = epiapiCli.get_govid(data.get('idDoc'))
-        real_img_resp = get(docImageInfo['uri'])
-        if real_img_resp.status_code != 200:
-            return {'error': 'cannot download doc:' + data.get('idDoc')}
-        docImage = real_img_resp.content
-        physical_document = base_document.add_physical_document(type='GOVT_ID_INT', mime_type='image/png', byte_stream=docImage) # Government ID
-        return None, physical_document.base_document
+        if business_document is not None:
+            co_regid = data.get('registrationNumber')
+            http_code, docImageInfo = epiapiCli.get_coi(data.get('coiDoc'))
+            real_img_resp = get(docImageInfo['uri'])
+            if real_img_resp.status_code != 200:
+                return {'error': 'cannot download doc:' + data.get('coiDoc')}
+            docImage = real_img_resp.content
+            business_document.add_physical_document(type='OTHER', mime_type='image/png', byte_stream=docImage)
+            business_document.add_virtual_document(type='OTHER', value=co_regid)
+            business_document.add_physical_document(type='OTHER', file_path=consent_doc) # Consent
+            if shop_file_bytes is not None:
+                business_document.add_physical_document(type='OTHER', mime_type='image/png', byte_stream=shop_file_bytes) # Shop Screengrab
+            else:
+                business_document.add_physical_document(type='OTHER', mime_type='image/png', file_path=shop_file_path) # Shop Screengrab
+            business_document.add_physical_document(type='OTHER', value=blank_sale_doc) # Blank sale Doc
+        else:
+            base_document.add_physical_document(type='OTHER', file_path=consent_doc) # Consent
+            if shop_file_bytes is not None:
+                base_document.add_physical_document(type='OTHER', mime_type='image/png', byte_stream=shop_file_bytes) # Shop Screengrab
+            else:
+                base_document.add_physical_document(type='OTHER', mime_type='image/png', file_path=shop_file_path) # Shop Screengrab
+            base_document.add_physical_document(type='OTHER', value=blank_sale_doc) # Blank sale Doc
+            http_code, docImageInfo = epiapiCli.get_govid(data.get('idDoc'))
+            real_img_resp = get(docImageInfo['uri'])
+            if real_img_resp.status_code != 200:
+                return {'error': 'cannot download doc:' + data.get('idDoc')}
+            docImage = real_img_resp.content
+            base_document.add_physical_document(type='GOVT_ID_INT', mime_type='image/png', byte_stream=docImage) # Government ID
+
+        os.remove(consent_doc)
+        return None
     except Exception as e:
         logger.debug(traceback.format_exc())
-        return {'error': str(e)}, None
+        return {'error': str(e)}
 
 def createNode(srn, user):
     try:
@@ -385,14 +393,14 @@ def createVBA(vbaRequest):
         updateVBAFail(vbaRequest)
         return
 
-    error = addBusinessDocument(synapseUser, baseDocument, vbaRequest, walletId)
+    error, businessDocument = addBusinessDocument(synapseUser, vbaRequest, walletId)
     if error is not None:
         logger.error(error)
         grayLogger.critical(error['error'], extra={'type': 'addBusinessDocument', 'vbaRequest':vbaRequest})
         updateVBAFail(vbaRequest)
         return
 
-    error, baseDocument = addPhysicalDocument(baseDocument, vbaRequest, accountId)
+    error = addPhysicalDocument(baseDocument, businessDocument, vbaRequest, accountId)
     if error is not None:
         logger.error(error)
         grayLogger.critical(error['error'], extra={'type': 'addPhysicalDocument', 'vbaRequest':vbaRequest})

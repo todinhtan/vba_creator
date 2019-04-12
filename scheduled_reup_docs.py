@@ -75,6 +75,10 @@ def reupSynapseIdDoc(userId, idDoc):
     if data is None:
         print("cannot upload: " + idDoc)
         return None
+    # get data of base docs as an array
+    # iterate to find individual base doc if base_documents[i].email[-10:] != 'epiapi.com' and base_documents[i].email[-12:] != 'sendwyre.com'
+    # idv_base_doc = base_documents[i]
+    # use idv_base_doc for idv_base_doc.add_physical_document(type='GOVT_ID_INT', mime_type='image/png', byte_stream=data)
     user.base_documents[0].add_physical_document(type='GOVT_ID_INT', mime_type='image/png', byte_stream=data)
 
 def reupSynapseCoiDoc(userId, coiDoc):
@@ -83,6 +87,11 @@ def reupSynapseCoiDoc(userId, coiDoc):
     if data is None:
         print("cannot upload: " + coiDoc)
         return None
+
+    # get data of base docs as an array
+    # iterate to find company base doc if base_documents[i].email[-10:] == 'epiapi.com' or base_documents[i].email[-12:] == 'sendwyre.com'
+    # comp_base_doc = base_documents[i]
+    # use comp_base_doc for comp_base_doc.add_physical_document(type='OTHER', mime_type='image/png', byte_stream=data)
     user.base_documents[0].add_physical_document(type='OTHER', mime_type='image/png', byte_stream=data)
 
 def uploadAuthorizedDoc(userId, doc):
@@ -182,6 +191,7 @@ def uploadAuthorizedDoc(userId, doc):
     with open('{}.pdf'.format(userId), mode='rb') as file: # b is important -> binary
         fileContent = file.read()
         user = User.by_id(client, userId)
+        # find base doc of individual same as function reupSynapseIdDoc
         user.base_documents[0].add_physical_document(type='AUTHORIZATION', mime_type='application/pdf', byte_stream=fileContent)
 
     os.remove('{}.pdf'.format(userId))
@@ -214,6 +224,7 @@ def reupAMZCapturedImg(userId, amz_id):
     if data is None:
         print("cannot upload: " + amz_id)
         return None
+    # find company base doc same as function reupSynapseCoiDoc
     user.base_documents[0].add_physical_document(type='OTHER', mime_type='image/png', byte_stream=data)
 
 def markDoneScheduledDoc(_id):
@@ -225,7 +236,7 @@ def getVbaByWalletId(walletId):
 
 def process():
     threading.Timer(2 * 60, process).start()
-    
+
     for pendingDoc in getPendingScheduledDocs(db.scheduled_reup_docs):
         docType = pendingDoc.get('docType')
         _id = pendingDoc.get('_id')
