@@ -175,34 +175,27 @@ def addBusinessDocument(user, base_document, data, walletId):
         phone_number = data.get('phoneNumber')
         alias = data.get('shopName')
         legal_name_ind = pinyin.get(data.get("companyNameCn"), format="strip", delimiter=" ") if (data.get('companyNameCn', None) != '' and data.get('companyNameCn', None) != None) else data.get("companyNameEn")
+
+
         address = data.get('address')
         addressstreetstrings = [address.get("street1"),address.get("street2")]
         addressstreetstrings = ' '.join(filter(None, addressstreetstrings))
         address_street = pinyin.get(addressstreetstrings, format="strip", delimiter=" ")
-        address_street = address_street if len(address_street) == len(addressstreetstrings) else addressstreetstrings
+        address_street = address_street if len(address_street.split()) == len(addressstreetstrings) else addressstreetstrings
 
         address_subdivision = pinyin.get(address.get('state'), format="strip", delimiter=" ")
-        address_subdivision = address_subdivision if len(address_subdivision) == len(address.get('state')) else address.get('state')
+        address_subdivision = address_subdivision if len(address_subdivision.split()) == len(address.get('state')) else address.get('state')
 
         address_city = pinyin.get(address.get('city'), format="strip", delimiter=" ")
-        address_city = address_city if len(address_city) == len(address.get('city')) else address.get('city')
+        address_city = address_city if len(address_city.split()) == len(address.get('city')) else address.get('city')
 
         dateOfEstablishment = data.get("dateOfEstablishment")
         day = time.strftime("%d", time.localtime(int(dateOfEstablishment/1000)))
         month = time.strftime("%m", time.localtime(int(dateOfEstablishment/1000)))
         year = time.strftime("%Y", time.localtime(int(dateOfEstablishment/1000)))
 
-        virtual_document = base_document.add_virtual_document(type='OTHER', value=co_regid)
-        base_document = virtual_document.base_document
-
-        http_code, docImageInfo = epiapiCli.get_coi(data.get('coiDoc'))
-        real_img_resp = get(docImageInfo['uri'])
-        if real_img_resp.status_code != 200:
-            return {'error': 'cannot download doc:' + data.get('coiDoc')}
-        docImage = real_img_resp.content
-        base_document.add_physical_document(type='OTHER', mime_type='image/png', byte_stream=docImage)
         kwargs = {
-            'email': walletId+'@sendwyre.com',
+            'email': walletId+'@epiapi.com',
             'phone_number': '0086'+phone_number,
             'name': legal_name_ind,
             'ip': myip,
@@ -220,7 +213,14 @@ def addBusinessDocument(user, base_document, data, walletId):
             # 'address_country_code': address_country_code
             'address_country_code': address.get('country')
         }
-        base_document2 = user.add_base_document(**kwargs)
+        base_document_company = user.add_base_document(**kwargs)
+        http_code, docImageInfo = epiapiCli.get_coi(data.get('coiDoc'))
+        real_img_resp = get(docImageInfo['uri'])
+        if real_img_resp.status_code != 200:
+            return {'error': 'cannot download doc:' + data.get('coiDoc')}
+        docImage = real_img_resp.content
+        base_document_company.add_physical_document(type='OTHER', mime_type='image/png', byte_stream=docImage)
+        base_document_company.add_virtual_document(type='OTHER', value=co_regid)
         return None
     except Exception as e:
         logger.debug(traceback.format_exc())

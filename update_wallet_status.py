@@ -1,10 +1,10 @@
 from requests import request
-import json
+import os
 from pymongo import MongoClient
 import threading
 from lib.epiapi import epiapi
 
-mongoClient = MongoClient('13.229.119.114', 27017)
+mongoClient = MongoClient(os.environ['VBA_DB_HOST'], int(os.environ['VBA_DB_PORT']))
 db = mongoClient.vba_service
 
 
@@ -15,13 +15,13 @@ def createEpiApi(credentials):
     return epiapi(account_id, 'v2', api_key, secret_key)
 
 epiapiCli = createEpiApi({
-    "accountId": "AC-6TBVQL9WHWQ",
-    "apiKey": "AK-62P9EN2J-QENZA8F9-JQZC22M2-Z9QRDRZD",
-    "apiSecKey": "SK-RCRQYU2M-EEATCXBD-427A2X3T-F4RQYJDG"
+    "accountId": os.environ['EPIAPI_ADMIN_ACCOUNTID'],
+    "apiKey": os.environ['EPIAPI_ADMIN_APIKEY'],
+    "apiSecKey": os.environ['EPIAPI_ADMIN_SECRET']
 })
 
 def getNotExecutedRequests(collection):
-    vbaRequests = collection.find({'status': 'APPROVED', 'callbackStatus': {'$exists': False}, 'sessionId': {'$exists': True, '$ne': None}})
+    vbaRequests = collection.find({'$or':[{'status':'WAITING_FOR_APPROVAL'},{'status':'APPROVED'}] ,'vbaData.accountNum': {'$exists': True}, 'callbackStatus': {'$exists': False}, 'sessionId': {'$exists': True, '$ne': None}})
     for req in vbaRequests:
         yield req
 
@@ -48,7 +48,7 @@ def process():
         print(walletId)
         httpCode, body = updateStatusApproved(walletId)
         print(httpCode)
-        if (httpCode == 204 or httpCode == 204):
+        if (httpCode == 204 or httpCode == 200):
             updateCallbackStatus(walletId, db.vbarequests, "executed")
         elif (httpCode == 401):
             updateCallbackStatus(walletId, db.vbarequests, "unauthorized")
