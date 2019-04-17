@@ -141,8 +141,10 @@ def process():
 
             with open('{}.pdf'.format(userId), mode='rb') as file: # b is important -> binary
                 fileContent = file.read()
-                user = User.by_id(client, userId)
-                user.base_documents[0].add_physical_document(type='AUTHORIZATION', mime_type='application/pdf', byte_stream=fileContent)
+                user = User.by_id(client, userId, 'yes')
+                for doc in user.base_documents:
+                    if doc.email[-10:] != 'epiapi.com' and doc.email[-12:] != 'sendwyre.com':
+                        doc.add_physical_document(type='AUTHORIZATION', mime_type='application/pdf', byte_stream=fileContent)
 
             os.remove('{}.pdf'.format(userId))
 
