@@ -269,12 +269,12 @@ def addPhysicalDocument(base_document, business_document, data, accountId):
             else:
                 base_document.add_physical_document(type='OTHER', mime_type='image/png', file_path=shop_file_path) # Shop Screengrab
             base_document.add_physical_document(type='OTHER', value=blank_sale_doc) # Blank sale Doc
-            http_code, docImageInfo = epiapiCli.get_govid(data.get('idDoc'))
-            real_img_resp = get(docImageInfo['uri'])
-            if real_img_resp.status_code != 200:
-                return {'error': 'cannot download doc:' + data.get('idDoc')}
-            docImage = real_img_resp.content
-            base_document.add_physical_document(type='GOVT_ID_INT', mime_type='image/png', byte_stream=docImage) # Government ID
+        http_code, docImageInfo = epiapiCli.get_govid(data.get('idDoc'))
+        real_img_resp = get(docImageInfo['uri'])
+        if real_img_resp.status_code != 200:
+            return {'error': 'cannot download doc:' + data.get('idDoc')}
+        docImage = real_img_resp.content
+        base_document.add_physical_document(type='GOVT_ID_INT', mime_type='image/png', byte_stream=docImage) # Government ID
 
         os.remove(consent_doc)
         return None
