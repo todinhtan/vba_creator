@@ -69,52 +69,91 @@ def getCoiDoc(coiDoc):
         return None
     return resp.content
 
-def reupSynapseIdDoc(userId, idDoc):
+def reupSynapseIdDoc(userId, idDoc, baseDocId, subDocId):
     user = User.by_id(client, userId, 'yes')
     data = getIdDoc(idDoc)
     if data is None:
         print("cannot upload: " + idDoc)
         return None
     
-    for doc in user.base_documents:
-        if doc.email[-10:] != 'epiapi.com' and doc.email[-12:] != 'sendwyre.com':
-            # delete old
-            for subDoc in doc.physical_documents:
-                if subDoc.type == 'GOVT_ID_INT':
-                    args = {
-                        'physical_documents': [{
-                            'id': subDoc.id,
-                            'document_type':'DELETE_DOCUMENT',
-                            'document_value':'data:image/gif;base64,SUQs=='
-                        }]
-                    }
-                    doc.update(**args)
+    document = None
+    if baseDocId is not None and baseDocId != '':
+        for doc in user.base_documents:
+            if doc.id == baseDocId:
+                document = doc
+                break
+    else:
+        if len(user.base_documents) == 1:
+            # if user has only one document, update it
+            document = user.base_documents[0]
+        elif len(user.base_documents) > 1:
+            # if user has more than one document, update individual document (base on email)
+            for doc in user.base_documents:
+                if doc.email[-10:] != 'epiapi.com' and doc.email[-12:] != 'sendwyre.com':
+                    document = doc
+                    break
 
-            # add new
-            doc.add_physical_document(type='GOVT_ID_INT', mime_type='image/png', byte_stream=data)
+    if document is not None:
+        # delete old doc if exist
+        if subDocId is not None and subDocId != '':
+            args = {
+                'physical_documents': [{
+                    'id': subDocId,
+                    'document_type':'DELETE_DOCUMENT',
+                    'document_value':'data:image/gif;base64,SUQs=='
+                }]
+            }
+            document.update(**args)
+        # add new
+        document.add_physical_document(type='GOVT_ID_INT', mime_type='image/png', byte_stream=data)
     # get data of base docs as an array
     # iterate to find individual base doc if base_documents[i].email[-10:] != 'epiapi.com' and base_documents[i].email[-12:] != 'sendwyre.com'
     # idv_base_doc = base_documents[i]
     # use idv_base_doc for idv_base_doc.add_physical_document(type='GOVT_ID_INT', mime_type='image/png', byte_stream=data)
 
-def reupSynapseCoiDoc(userId, coiDoc):
+def reupSynapseCoiDoc(userId, coiDoc, baseDocId, subDocId):
     user = User.by_id(client, userId, 'yes')
     data = getIdDoc(coiDoc)
     if data is None:
         print("cannot upload: " + coiDoc)
         return None
 
-    for doc in user.base_documents:
-        if doc.email[-10:] == 'epiapi.com' or doc.email[-12:] == 'sendwyre.com':
-            # add new
-            doc.add_physical_document(type='OTHER', mime_type='image/png', byte_stream=data)
+    document = None
+    if baseDocId is not None and baseDocId != '':
+        for doc in user.base_documents:
+            if doc.id == baseDocId:
+                document = doc
+                break
+    else:
+        if len(user.base_documents) == 1:
+            # if user has only one document, update it
+            document = user.base_documents[0]
+        elif len(user.base_documents) > 1:
+            # if user has more than one document, update company document (base on email)
+            for doc in user.base_documents:
+                if doc.email[-10:] == 'epiapi.com' or doc.email[-12:] == 'sendwyre.com':
+                    document = doc
+                    break
 
+    if document is not None:
+        # delete old doc if exist
+        if subDocId is not None and subDocId != '':
+            args = {
+                'physical_documents': [{
+                    'id': subDocId,
+                    'document_type':'DELETE_DOCUMENT',
+                    'document_value':'data:image/gif;base64,SUQs=='
+                }]
+            }
+            document.update(**args)
+        # add new
+        document.add_physical_document(type='OTHER', mime_type='image/png', byte_stream=data)
     # get data of base docs as an array
     # iterate to find company base doc if base_documents[i].email[-10:] == 'epiapi.com' or base_documents[i].email[-12:] == 'sendwyre.com'
     # comp_base_doc = base_documents[i]
     # use comp_base_doc for comp_base_doc.add_physical_document(type='OTHER', mime_type='image/png', byte_stream=data)
 
-def uploadAuthorizedDoc(userId, doc):
+def uploadAuthorizedDoc(userId, doc, baseDocId, subDocId):
     # open images
     logo = Image.open('epiapi_logo.png')
     box = Image.open('box.png')
@@ -212,23 +251,36 @@ def uploadAuthorizedDoc(userId, doc):
         fileContent = file.read()
         user = User.by_id(client, userId, 'yes')
 
-        for doc in user.base_documents:
-            if doc.email[-10:] != 'epiapi.com' and doc.email[-12:] != 'sendwyre.com':
-                # delete old
-                for subDoc in doc.physical_documents:
-                    if subDoc.type == 'AUTHORIZATION':
-                        args = {
-                            'physical_documents': [{
-                                'id': subDoc.id,
-                                'document_type':'DELETE_DOCUMENT',
-                                'document_value':'data:image/gif;base64,SUQs=='
-                            }]
-                        }
-                        doc.update(**args)
+        document = None
+        if baseDocId is not None and baseDocId != '':
+            for doc in user.base_documents:
+                if doc.id == baseDocId:
+                    document = doc
+                    break
+        else:
+            if len(user.base_documents) == 1:
+                # if user has only one document, update it
+                document = user.base_documents[0]
+            elif len(user.base_documents) > 1:
+                # if user has more than one document, update individual document (base on email)
+                for doc in user.base_documents:
+                    if doc.email[-10:] != 'epiapi.com' and doc.email[-12:] != 'sendwyre.com':
+                        document = doc
+                        break
 
-                # add new
-                doc.add_physical_document(type='AUTHORIZATION', mime_type='application/pdf', byte_stream=fileContent)
-        # find base doc of individual same as function reupSynapseIdDoc
+        if document is not None:
+            # delete old doc if exist
+            if subDocId is not None and subDocId != '':
+                args = {
+                    'physical_documents': [{
+                        'id': subDocId,
+                        'document_type':'DELETE_DOCUMENT',
+                        'document_value':'data:image/gif;base64,SUQs=='
+                    }]
+                }
+                document.update(**args)
+            # add new
+            document.add_physical_document(type='AUTHORIZATION', mime_type='application/pdf', byte_stream=fileContent)
 
     os.remove('{}.pdf'.format(userId))
 
@@ -254,17 +306,43 @@ def getAMZImg(amz_id):
         return resp.content
     return None
 
-def reupAMZCapturedImg(userId, amz_id):
+def reupAMZCapturedImg(userId, amz_id, baseDocId, subDocId):
     user = User.by_id(client, userId, 'yes')
     data = getAMZImg(amz_id)
     if data is None:
         print("cannot upload: " + amz_id)
         return None
 
-    for doc in user.base_documents:
-        if doc.email[-10:] == 'epiapi.com' or doc.email[-12:] == 'sendwyre.com':
-            # add new
-            doc.add_physical_document(type='OTHER', mime_type='image/png', byte_stream=data)
+    document = None
+    if baseDocId is not None and baseDocId != '':
+        for doc in user.base_documents:
+            if doc.id == baseDocId:
+                document = doc
+                break
+    else:
+        if len(user.base_documents) == 1:
+            # if user has only one document, update it
+            document = user.base_documents[0]
+        elif len(user.base_documents) > 1:
+            # if user has more than one document, update company document (base on email)
+            for doc in user.base_documents:
+                if doc.email[-10:] == 'epiapi.com' or doc.email[-12:] == 'sendwyre.com':
+                    document = doc
+                    break
+
+    if document is not None:
+        # delete old doc if exist
+        if subDocId is not None and subDocId != '':
+            args = {
+                'physical_documents': [{
+                    'id': subDocId,
+                    'document_type':'DELETE_DOCUMENT',
+                    'document_value':'data:image/gif;base64,SUQs=='
+                }]
+            }
+            document.update(**args)
+        # add new
+        document.add_physical_document(type='OTHER', mime_type='image/png', byte_stream=data)
 
     # find company base doc same as function reupSynapseCoiDoc
 
@@ -281,6 +359,8 @@ def process():
     for pendingDoc in getPendingScheduledDocs(db.scheduled_reup_docs):
         docType = pendingDoc.get('docType')
         _id = pendingDoc.get('_id')
+        baseDocId = pendingDoc.get('baseDocId')
+        subDocId = pendingDoc.get('subDocId')
 
         # skip if docType not found!
         if docType is None:
@@ -291,19 +371,19 @@ def process():
         userId = pendingDoc.get('userId')
         if docType == 'authorization':
             authorizedData = pendingDoc.get('authorizationData')
-            uploadAuthorizedDoc(userId, authorizedData)
+            uploadAuthorizedDoc(userId, authorizedData, baseDocId, subDocId)
         elif docType == 'idDoc':
             vba = getVbaByWalletId(walletId)
             if vba is not None:
                 idDoc = vba.get('idDoc')
                 if idDoc is not None:
-                    reupSynapseIdDoc(userId, idDoc)
+                    reupSynapseIdDoc(userId, idDoc, baseDocId, subDocId)
         elif docType == 'coiDoc':
             vba = getVbaByWalletId(walletId)
             if vba is not None:
                 coiDoc = vba.get('coiDoc')
                 if coiDoc is not None:
-                    reupSynapseCoiDoc(userId, coiDoc)
+                    reupSynapseCoiDoc(userId, coiDoc, baseDocId, subDocId)
         elif docType == 'amz':
             vba = getVbaByWalletId(walletId)
             merchantIds = vba.get('merchantIds')
@@ -311,13 +391,16 @@ def process():
             if merchantIds is not None and len(merchantIds) > 0:
                 merchantId = merchantIds[0].get('merchantId')
                 if merchantId is not None:
-                    reupAMZCapturedImg(userId,merchantId)
-        elif docType == 'basic': # individual basic
+                    reupAMZCapturedImg(userId, merchantId, baseDocId, subDocId)
+        elif docType == 'basic' or docType == 'company_basic': # individual basic
             user = User.by_id(client, userId, 'yes')
+            print(user)
             userData = pendingDoc.get('userData')
-            for document in user.base_documents:
-                if document.email[-10:] != 'epiapi.com' and document.email[-12:] != 'sendwyre.com':
-                    args = {
+            print(baseDocId)
+            if baseDocId is not None and baseDocId != '':
+                payload = {
+                    'documents': [{
+                        'id': baseDocId,
                         'email': userData.get('email'),
                         'phone_number': userData.get('phone_number'),
                         'ip': userData.get('ip'),
@@ -329,31 +412,9 @@ def process():
                         'day': userData.get('day'),
                         'month': userData.get('month'),
                         'year': userData.get('year'),
-                    }
-
-                    # update document
-                    document.update(**args)
-        elif docType == 'company_basic': # company basic
-            user = User.by_id(client, userId, 'yes')
-            userData = pendingDoc.get('userData')
-            for document in user.base_documents:
-                if document.email[-10:] == 'epiapi.com' or document.email[-12:] == 'sendwyre.com':
-                    args = {
-                        'email': userData.get('email'),
-                        'phone_number': userData.get('phone_number'),
-                        'ip': userData.get('ip'),
-                        'address_street': userData.get('address_street'),
-                        'address_city': userData.get('address_city'),
-                        'address_subdivision': userData.get('address_subdivision'),
-                        'address_postal_code': userData.get('address_postal_code'),
-                        'address_country_code': userData.get('address_country_code'),
-                        'day': userData.get('day'),
-                        'month': userData.get('month'),
-                        'year': userData.get('year'),
-                    }
-
-                    # update document
-                    document.update(**args)
+                    }]
+                }
+                client.users.update(userId, payload)
 
         # mark record status = DONE after processing
         markDoneScheduledDoc(_id)
