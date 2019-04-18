@@ -394,9 +394,7 @@ def process():
                     reupAMZCapturedImg(userId, merchantId, baseDocId, subDocId)
         elif docType == 'basic' or docType == 'company_basic': # individual basic
             user = User.by_id(client, userId, 'yes')
-            print(user)
             userData = pendingDoc.get('userData')
-            print(baseDocId)
             if baseDocId is not None and baseDocId != '':
                 payload = {
                     'documents': [{
