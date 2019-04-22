@@ -396,21 +396,27 @@ def process():
             user = User.by_id(client, userId, 'yes')
             userData = pendingDoc.get('userData')
             if baseDocId is not None and baseDocId != '':
+                docPayload = {
+                    'id': baseDocId,
+                    'email': userData.get('email'),
+                    'phone_number': userData.get('phone_number'),
+                    'ip': userData.get('ip'),
+                    'address_street': userData.get('address_street'),
+                    'address_city': userData.get('address_city'),
+                    'address_subdivision': userData.get('address_subdivision'),
+                    'address_postal_code': userData.get('address_postal_code'),
+                    'address_country_code': userData.get('address_country_code'),
+                    'day': userData.get('day'),
+                    'month': userData.get('month'),
+                    'year': userData.get('year'),
+                }
+
+                for key in ['name', 'alias', 'entity_type', 'entity_scope']:
+                    if userData.get(key) is not None:
+                        docPayload[key] = userData.get(key) 
+                
                 payload = {
-                    'documents': [{
-                        'id': baseDocId,
-                        'email': userData.get('email'),
-                        'phone_number': userData.get('phone_number'),
-                        'ip': userData.get('ip'),
-                        'address_street': userData.get('address_street'),
-                        'address_city': userData.get('address_city'),
-                        'address_subdivision': userData.get('address_subdivision'),
-                        'address_postal_code': userData.get('address_postal_code'),
-                        'address_country_code': userData.get('address_country_code'),
-                        'day': userData.get('day'),
-                        'month': userData.get('month'),
-                        'year': userData.get('year'),
-                    }]
+                    'documents': [docPayload]
                 }
                 client.users.update(userId, payload)
 
