@@ -45,7 +45,7 @@ def process():
                 client.nodes.delete(userId, node.id)
 
             # set to DONE
-            markDel(userId,'LOCKED-USER')
+            markDel(userId,'DEACTIVATED-NODE')
             markDoneDoc(db.deactive_nodes, userId)
 
     for pendingDeactiveNode in getPendingDoc(db.lock_users):
@@ -59,7 +59,7 @@ def process():
                 client.users.update(userId, payload)
 
             # set to DONE
-            markDel(userId,'DEACTIVATED-NODE')
+            markDel(userId,'LOCKED-USER')
             markDoneDoc(db.lock_users, userId)
 
 if __name__ == '__main__':
