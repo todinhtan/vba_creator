@@ -6,6 +6,7 @@ from synapse_pay_rest import Subnet
 import os
 from requests import get
 from pymongo import MongoClient
+import threading
 
 mongoClient = MongoClient(os.environ['VBA_DB_HOST'], int(os.environ['VBA_DB_PORT']))
 db = mongoClient.vba_service
@@ -34,6 +35,7 @@ def markDel(userId, status):
     db.vbarequests.update({'vbaData.userId':userId}, {'$set':{'status':status}})
 
 def process():
+    threading.Timer(2 * 60, process).start()
     for pendingDeactiveNode in getPendingDoc(db.deactive_nodes):
         userId = pendingDeactiveNode.get('userId')
         if userId is not None:
