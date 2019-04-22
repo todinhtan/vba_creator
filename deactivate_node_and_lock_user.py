@@ -37,10 +37,7 @@ def process():
             user = User.by_id(client, userId, 'yes')
             nodes = Node.all(user)
             for node in nodes:
-                user = User.by_id(client, userId, 'yes')
-                nodes = Node.all(user)
-                for node in nodes:
-                    client.nodes.delete(userId, node.id)
+                client.nodes.delete(userId, node.id)
             
             # set to DONE
             markDoneDoc(db.deactive_nodes, userId)
