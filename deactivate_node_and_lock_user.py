@@ -30,6 +30,9 @@ def getPendingDoc(collection):
 def markDoneDoc(collection, userId):
     collection.update({'userId':userId}, {'$set':{'status':'DONE'}})
 
+def markDel(userId, status):
+    db.vbarequests.update({'vbaData.userId':userId}, {'$set':{'status':status}})
+
 def process():
     for pendingDeactiveNode in getPendingDoc(db.deactive_nodes):
         userId = pendingDeactiveNode.get('userId')
@@ -37,14 +40,12 @@ def process():
             user = User.by_id(client, userId, 'yes')
             nodes = Node.all(user)
             for node in nodes:
-                user = User.by_id(client, userId, 'yes')
-                nodes = Node.all(user)
-                for node in nodes:
-                    client.nodes.delete(userId, node.id)
-            
+                client.nodes.delete(userId, node.id)
+
             # set to DONE
+            markDel(userId,'LOCKED-USER')
             markDoneDoc(db.deactive_nodes, userId)
-            
+
     for pendingDeactiveNode in getPendingDoc(db.lock_users):
         userId = pendingDeactiveNode.get('userId')
         if userId is not None:
@@ -56,6 +57,7 @@ def process():
                 client.users.update(userId, payload)
 
             # set to DONE
+            markDel(userId,'DEACTIVATED-NODE')
             markDoneDoc(db.lock_users, userId)
 
 if __name__ == '__main__':
