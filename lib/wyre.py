@@ -5,10 +5,10 @@ import os
 from requests import request
 
 
-class epiapi(object):
+class wyre(object):
     def __init__(self, account_id, api_version, api_key, api_secret):
         self.account_id = account_id
-        self.api_url = '{}/{}'.format(os.environ['EPIAPI_BASE_URL'],api_version)
+        self.api_url = '{}/{}'.format(os.environ['WYRE_BASE_URL'],api_version)
         self.api_version = api_version
         self.api_key = api_key
         self.api_secret = api_secret
@@ -131,4 +131,11 @@ class epiapi(object):
         url = self.api_url + '/documents?ownerSrn=' + walletSrn
         method = 'POST'
         body = docImage
+        return url, method, body
+
+    @authenticate_request
+    def get_trans_info(self):
+        url = self.api_url + '/transfers'
+        method = 'GET'
+        body = ''
         return url, method, body
