@@ -1,10 +1,11 @@
 from lib.wyre import wyre
 import logging, graypy
 import os, json
+import threading
 from requests import get
 from pymongo import MongoClient
 from lib.vba import vba
-
+# GRAYLOG_HOST=3.1.25.26 GRAYLOG_PORT=12202 WYRE_ADMIN_ACCOUNTID=AC-T8DT7YJEAP7 WYRE_ADMIN_APIKEY=AK-67N6BTRD-WVEUCPTU-93QF4MZQ-VJBV3MAE WYRE_ADMIN_SECRET=SK-ANPR7NW9-TVVZZT3V-DGXVNU33-22HD2Q67 WYRE_BASE_URL=https://api.testwyre.com VBA_SERVICE_URL=https://vba.epiapi.com python3 create_transfer_queue.py
 grayLogger = logging.getLogger('graylog')
 grayLogger.setLevel(logging.CRITICAL)
 handler = graypy.GELFHandler(os.environ['GRAYLOG_HOST'], int(os.environ['GRAYLOG_PORT']))
@@ -40,6 +41,7 @@ def isQueuedTranferExisted(wyreTransferId):
     return total > 0
 
 def process():
+    threading.Timer(60, process).start()
     http_code, trans_info = wyreCli.get_trans_info()
     if http_code == 200:
         transfers = trans_info['data']
@@ -48,11 +50,11 @@ def process():
                 # skip if source != 'service:Fiat Credits'
                 if transfer['source'] != 'service:Fiat Credits':
                     continue
-                
+
                 # skip if status != 'COMPLETED'
                 if transfer['status'] != 'COMPLETED':
                     continue
-                
+
                 # skip if sourceAmount != destAmount
                 if transfer['sourceAmount'] != transfer['destAmount']:
                     continue
