@@ -1,3 +1,8 @@
+from synapse_pay_rest.models.nodes import *
+from synapse_pay_rest import User
+from synapse_pay_rest import Client
+from synapse_pay_rest import Node
+from synapse_pay_rest import Transaction
 from lib.wyre import wyre
 import logging, graypy
 import os, json
@@ -26,7 +31,54 @@ wyreCli = createWyreApi({
     "apiSecKey": os.environ['WYRE_ADMIN_SECRET']
 })
 
+myip = get('https://api.ipify.org').text
+args = {
+    'client_id': os.environ['SYNAPSE_LIVE_ID'], # your client id
+    'client_secret': os.environ['SYNAPSE_LIVE_SECRET'], # your client secret
+    'fingerprint': '5af084654688ae0043d84603',
+    'ip_address': myip, # user's IP
+    'development_mode': False if os.environ['SYNAPSE_ENV'] == 'production' else True, # (optional) default False
+    'logging': bool(os.environ['ON_DEBUG']) # (optional) default False # (optional) logs to stdout if True
+}
+
+synapseClient = Client(**args)
+
 vbaCli = vba()
+
+def getAddenda(userId, wyre_amount, wyre_date ):
+    user = User.by_id(synapseClient, userId)
+    addenda = ""
+
+    options = {
+        'page': 1,
+        'per_page': 20,
+        'type': 'SUBACCOUNT-US'
+    }
+
+    nodes = Node.all(user, **options)
+    if not nodes:
+        return addenda
+    nodeid = getattr(nodes[0], 'id')
+
+    node = Node.by_id(user, nodeid)
+
+    transactions = Transaction.all(node, **options)
+
+    x = len(transactions)
+    print("transactions\n")
+    print(x)
+    for translist in range(0, x):
+        amount = getattr(transactions[translist], 'amount')
+        timelines = getattr(transactions[translist], 'timelines')
+        real_amount = amount.get("amount")
+        if real_amount == wyre_amount:
+            for d in timelines:
+                if d.get("status") == "CREATED":
+                    if d.get("date") == wyre_date:
+                        from_info = getattr(transactions[translist], 'from')
+                        addenda = from_info.get("meta").get("addenda")
+    print("addenda:", addenda)
+    return addenda
 
 def getWalletIdByUserId(userId):
     vba = db.vbarequests.find_one({'country': 'US', 'vbaData.userId': userId})
@@ -69,13 +121,13 @@ def process():
                 # message = '5c9afc555ac64800661b190a'
                 if message is None or message == '':
                     continue
-                
+
                 # http_status, response = vbaCli.addFunds(transfer['sourceAmount'], message, transfer['sourceCurrency'], transfer['destCurrency'])
                 # newTransfer = json.loads(response)
                 walletId = getWalletIdByUserId(message)
                 if walletId is None:
                     continue
-                
+                addenda = getAddenda(message, transfer['destAmount'], transfer['createdAt'])
                 document = {
                     # 'transferId': newTransfer['transfer']['id'],
                     'wyreTransferId': transfer['id'],
@@ -86,9 +138,10 @@ def process():
                     'destAmount': transfer['destAmount'],
                     'dest': 'wallet:{}'.format(walletId),
                     'userId': message,
-                    'message': 'addenda',
+                    'message': addenda,
                     'autoConfirm': True,
-                    'status': 'PENDING'
+                    'status': 'PENDING',
+                    'createdAt': transfer['createdAt']
                 }
                 insertQueuedTranfer(document)
 
