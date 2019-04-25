@@ -65,8 +65,8 @@ def process():
                     continue
 
                 # hardcode message = userId
-                # message = transfer['message']
-                message = '5c9afc555ac64800661b190a'
+                message = transfer['message']
+                # message = '5c9afc555ac64800661b190a'
                 if message is None or message == '':
                     continue
                 
