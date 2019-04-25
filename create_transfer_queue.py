@@ -37,7 +37,6 @@ def insertQueuedTranfer(document):
 
 def isQueuedTranferExisted(wyreTransferId):
     total = db.daily_topup_transfers.count_documents({'wyreTransferId': wyreTransferId})
-    print(total)
     return total > 0
 
 def process():
@@ -66,24 +65,30 @@ def process():
                 # hardcode message = userId
                 # message = transfer['message']
                 message = '5c9afc555ac64800661b190a'
-                http_status, response = vbaCli.addFunds(transfer['sourceAmount'], message, transfer['sourceCurrency'], transfer['destCurrency'])
-                if http_status == 200:
-                    newTransfer = json.loads(response)
-                    walletId = getWalletIdByUserId(message)
-                    document = {
-                        'transferId': newTransfer['transfer']['id'],
-                        'wyreTransferId': transfer['id'],
-                        'source': transfer['source'],
-                        'sourceCurrency': transfer['sourceCurrency'],
-                        'destCurrency': transfer['destCurrency'],
-                        'sourceAmount': transfer['sourceAmount'],
-                        'destAmount': transfer['destAmount'],
-                        'dest': 'wallet:{}'.format(walletId),
-                        'message': 'addenda',
-                        'autoConfirm': False,
-                        'status': 'PENDING'
-                    }
-                    insertQueuedTranfer(document)
+                if message is None or message == '':
+                    continue
+                
+                # http_status, response = vbaCli.addFunds(transfer['sourceAmount'], message, transfer['sourceCurrency'], transfer['destCurrency'])
+                # newTransfer = json.loads(response)
+                walletId = getWalletIdByUserId(message)
+                if walletId is None:
+                    continue
+                
+                document = {
+                    # 'transferId': newTransfer['transfer']['id'],
+                    'wyreTransferId': transfer['id'],
+                    'source': transfer['source'],
+                    'sourceCurrency': transfer['sourceCurrency'],
+                    'destCurrency': transfer['destCurrency'],
+                    'sourceAmount': transfer['sourceAmount'],
+                    'destAmount': transfer['destAmount'],
+                    'dest': 'wallet:{}'.format(walletId),
+                    'userId': message,
+                    'message': 'addenda',
+                    'autoConfirm': True,
+                    'status': 'PENDING'
+                }
+                insertQueuedTranfer(document)
 
 if __name__ == '__main__':
     process()
