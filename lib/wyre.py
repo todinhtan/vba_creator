@@ -139,3 +139,10 @@ class wyre(object):
         method = 'GET'
         body = ''
         return url, method, body
+
+    @authenticate_request
+    def createTransfer(self, payload):
+        url = self.api_url + '/transfers'
+        method = 'POST'
+        body = payload
+        return url, method, body

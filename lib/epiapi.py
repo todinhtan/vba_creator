@@ -34,6 +34,25 @@ class epiapi(object):
             return 404, {}
         return wrap
 
+    def authenticate_request_with_param(func):
+        def wrap(self, *args, **kwargs):
+            url, method, body, params = func(self, *args, **kwargs)
+            timestamp = int(time.time() * 1000)
+            url += '?timestamp={}'.format(timestamp)
+            if len(params) > 0:
+                url += '&{}'.format('&'.join(['%s=%s' % (key, value) for (key, value) in params.items()]))
+            bodyJson = json.dumps(body) if body != '' else ''
+            headers = {}
+            headers['Content-Type'] = 'application/json'
+            headers['X-Api-Version'] = self.api_version
+            headers['X-Api-Key'] = self.api_key
+            headers['X-Api-Signature'] = hmac.new(self.api_secret.encode('utf-8'), (url + bodyJson).encode('utf-8'), 'SHA256').hexdigest()
+            resp = request(method=method, url=url, params={}, data=(json.dumps(body) if body != '' else None), json=None, headers=headers)
+            if resp.text is not None: #Wyre will always try to give an err body
+                return resp.status_code, resp.json()
+            return 404, {}
+        return wrap
+
     def authenticate_session(func):
         def wrap(self, *args, **kwargs):
             url, method, body, sessionId = func(self, *args, **kwargs)
@@ -132,3 +151,11 @@ class epiapi(object):
         method = 'POST'
         body = docImage
         return url, method, body
+
+    @authenticate_request_with_param
+    def get_transfers(self, accountId, limit):
+        url = '{}/transfers/account:{}'.format(self.api_url, accountId)
+        method = 'GET'
+        body = ''
+        params = { 'limit': limit }
+        return url, method, body, params
