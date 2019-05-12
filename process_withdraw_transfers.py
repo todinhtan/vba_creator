@@ -50,6 +50,7 @@ def process():
             fee = transfer.get('fee')
             if fee <= 0:
                 print('Transfer {}: fee is not greater than zero'.format(transfer.get('id')))
+            else:
                 feePayload = {
                     'source': transfer.get('source'),
                     'dest': transfer.get('feeDest'),
@@ -59,9 +60,9 @@ def process():
                     'destCurrency' : transfer.get('destCurrency')
                 }
                 feeStatus, feeResp = wyreCli.createTransfer(feePayload)
-                if status != 200: print('Error while create fee transfer: ' + json.dumps(feeResp))
-            else:
-                print('Error while create main transfer: ' + json.dumps(resp))
+                if feeStatus != 200: print('Error while create fee transfer: ' + json.dumps(feeResp))
+        else:
+            print('Error while create main transfer: ' + json.dumps(resp))
         markDoneWithdraw(transfer.get('_id'), resp, feeResp)
 
 if __name__ == '__main__':
