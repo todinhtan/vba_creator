@@ -419,6 +419,25 @@ def process():
                     'documents': [docPayload]
                 }
                 client.users.update(userId, payload)
+        elif docType == 'delete_physical':
+            if baseDocId is not None and subDocId is not None:
+                user = User.by_id(client, userId, 'yes')
+                document = None
+                for doc in user.base_documents:
+                    if doc.id == baseDocId:
+                        document = doc
+                        break
+
+                if document is not None:
+                    # delete old doc if exist
+                    args = {
+                        'physical_documents': [{
+                            'id': subDocId,
+                            'document_type':'DELETE_DOCUMENT',
+                            'document_value':'data:image/gif;base64,SUQs=='
+                        }]
+                    }
+                    document.update(**args)
 
         # mark record status = DONE after processing
         markDoneScheduledDoc(_id)
