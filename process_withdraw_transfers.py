@@ -2,6 +2,7 @@ import os, json
 from pymongo import MongoClient
 import logging, graypy
 from lib.wyre import wyre
+import threading
 
 grayLogger = logging.getLogger('graylog')
 grayLogger.setLevel(logging.CRITICAL)
@@ -18,9 +19,9 @@ def createWyreApi(credentials):
     return wyre(account_id, 'v3', api_key, secret_key)
 
 wyreCli = createWyreApi({
-    "accountId": os.environ['WYRE_ADMIN_ACCOUNTID'],
-    "apiKey": os.environ['WYRE_ADMIN_APIKEY'],
-    "apiSecKey": os.environ['WYRE_ADMIN_SECRET']
+    "accountId": os.environ['WYRE_ACCOUNTID'],
+    "apiKey": os.environ['WYRE_APIKEY'],
+    "apiSecKey": os.environ['WYRE_SECRET']
 })
 
 def getPendingWithdraw():
@@ -32,6 +33,7 @@ def markDoneWithdraw(_id, mainTransferResp = None, feeTransferResp = None):
     db.daily_withdraw_transfers.update({'_id':_id}, {'$set':{'status':'DONE', 'mainTransferResp': mainTransferResp, 'feeTransferResp': feeTransferResp}})
 
 def process():
+    threading.Timer(60, process).start()
     for transfer in getPendingWithdraw():
         # main transfer
         payload = {
@@ -47,10 +49,8 @@ def process():
         feeResp = None
         if status == 200:
             # fee transfer
-            fee = transfer.get('fee')
-            if fee <= 0:
-                print('Transfer {}: fee is not greater than zero'.format(transfer.get('id')))
-            else:
+            fee = float(transfer.get('fee'))
+            if fee > 0:
                 feePayload = {
                     'source': transfer.get('source'),
                     'dest': transfer.get('feeDest'),
@@ -61,6 +61,8 @@ def process():
                 }
                 feeStatus, feeResp = wyreCli.createTransfer(feePayload)
                 if feeStatus != 200: print('Error while create fee transfer: ' + json.dumps(feeResp))
+            else:
+                print('Transfer {}: fee is not greater than zero'.format(transfer.get('id')))
         else:
             print('Error while create main transfer: ' + json.dumps(resp))
         markDoneWithdraw(transfer.get('_id'), resp, feeResp)
