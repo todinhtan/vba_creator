@@ -48,7 +48,7 @@ class epiapi(object):
             headers['X-Api-Key'] = self.api_key
             headers['X-Api-Signature'] = hmac.new(self.api_secret.encode('utf-8'), (url + bodyJson).encode('utf-8'), 'SHA256').hexdigest()
             resp = request(method=method, url=url, params={}, data=(json.dumps(body) if body != '' else None), json=None, headers=headers)
-            if resp.text is not None: #Wyre will always try to give an err body
+            if resp.status_code == 200: #Wyre will always try to give an err body
                 return resp.status_code, resp.json()
             return 404, {}
         return wrap
@@ -158,4 +158,12 @@ class epiapi(object):
         method = 'GET'
         body = ''
         params = { 'limit': limit }
+        return url, method, body, params
+
+    @authenticate_request_with_param
+    def get_wallet_by_id(self, walletId):
+        url = self.api_url + '/wallet/' + walletId
+        method = 'GET'
+        body = ''
+        params = {}
         return url, method, body, params
