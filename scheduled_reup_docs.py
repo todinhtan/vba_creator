@@ -75,7 +75,7 @@ def reupSynapseIdDoc(userId, idDoc, baseDocId, subDocId):
     if data is None:
         print("cannot upload: " + idDoc)
         return None
-    
+
     document = None
     if baseDocId is not None and baseDocId != '':
         for doc in user.base_documents:
@@ -357,90 +357,94 @@ def process():
     threading.Timer(2 * 60, process).start()
 
     for pendingDoc in getPendingScheduledDocs(db.scheduled_reup_docs):
-        docType = pendingDoc.get('docType')
-        _id = pendingDoc.get('_id')
-        baseDocId = pendingDoc.get('baseDocId')
-        subDocId = pendingDoc.get('subDocId')
+        try:
+            docType = pendingDoc.get('docType')
+            _id = pendingDoc.get('_id')
+            baseDocId = pendingDoc.get('baseDocId')
+            subDocId = pendingDoc.get('subDocId')
 
-        # skip if docType not found!
-        if docType is None:
-            continue
+            # skip if docType not found!
+            if docType is None:
+                continue
 
-        # proceed based on docType
-        walletId = pendingDoc.get('walletId')
-        userId = pendingDoc.get('userId')
-        if docType == 'authorization':
-            authorizedData = pendingDoc.get('authorizationData')
-            uploadAuthorizedDoc(userId, authorizedData, baseDocId, subDocId)
-        elif docType == 'idDoc':
-            vba = getVbaByWalletId(walletId)
-            if vba is not None:
-                idDoc = vba.get('idDoc')
-                if idDoc is not None:
-                    reupSynapseIdDoc(userId, idDoc, baseDocId, subDocId)
-        elif docType == 'coiDoc':
-            vba = getVbaByWalletId(walletId)
-            if vba is not None:
-                coiDoc = vba.get('coiDoc')
-                if coiDoc is not None:
-                    reupSynapseCoiDoc(userId, coiDoc, baseDocId, subDocId)
-        elif docType == 'amz':
-            vba = getVbaByWalletId(walletId)
-            merchantIds = vba.get('merchantIds')
-            print(merchantIds)
-            if merchantIds is not None and len(merchantIds) > 0:
-                merchantId = merchantIds[0].get('merchantId')
-                if merchantId is not None:
-                    reupAMZCapturedImg(userId, merchantId, baseDocId, subDocId)
-        elif docType == 'basic' or docType == 'company_basic': # individual basic
-            user = User.by_id(client, userId, 'yes')
-            userData = pendingDoc.get('userData')
-            if baseDocId is not None and baseDocId != '':
-                docPayload = {
-                    'id': baseDocId,
-                    'email': userData.get('email'),
-                    'phone_number': userData.get('phone_number'),
-                    'ip': userData.get('ip'),
-                    'address_street': userData.get('address_street'),
-                    'address_city': userData.get('address_city'),
-                    'address_subdivision': userData.get('address_subdivision'),
-                    'address_postal_code': userData.get('address_postal_code'),
-                    'address_country_code': userData.get('address_country_code'),
-                    'day': userData.get('day'),
-                    'month': userData.get('month'),
-                    'year': userData.get('year'),
-                }
-
-                for key in ['name', 'alias', 'entity_type', 'entity_scope']:
-                    if userData.get(key) is not None:
-                        docPayload[key] = userData.get(key) 
-                
-                payload = {
-                    'documents': [docPayload]
-                }
-                client.users.update(userId, payload)
-        elif docType == 'delete_physical':
-            if baseDocId is not None and subDocId is not None:
+            # proceed based on docType
+            walletId = pendingDoc.get('walletId')
+            userId = pendingDoc.get('userId')
+            if docType == 'authorization':
+                authorizedData = pendingDoc.get('authorizationData')
+                uploadAuthorizedDoc(userId, authorizedData, baseDocId, subDocId)
+            elif docType == 'idDoc':
+                vba = getVbaByWalletId(walletId)
+                if vba is not None:
+                    idDoc = vba.get('idDoc')
+                    if idDoc is not None:
+                        reupSynapseIdDoc(userId, idDoc, baseDocId, subDocId)
+            elif docType == 'coiDoc':
+                vba = getVbaByWalletId(walletId)
+                if vba is not None:
+                    coiDoc = vba.get('coiDoc')
+                    if coiDoc is not None:
+                        reupSynapseCoiDoc(userId, coiDoc, baseDocId, subDocId)
+            elif docType == 'amz':
+                vba = getVbaByWalletId(walletId)
+                merchantIds = vba.get('merchantIds')
+                print(merchantIds)
+                if merchantIds is not None and len(merchantIds) > 0:
+                    merchantId = merchantIds[0].get('merchantId')
+                    if merchantId is not None:
+                        reupAMZCapturedImg(userId, merchantId, baseDocId, subDocId)
+            elif docType == 'basic' or docType == 'company_basic': # individual basic
                 user = User.by_id(client, userId, 'yes')
-                document = None
-                for doc in user.base_documents:
-                    if doc.id == baseDocId:
-                        document = doc
-                        break
-
-                if document is not None:
-                    # delete old doc if exist
-                    args = {
-                        'physical_documents': [{
-                            'id': subDocId,
-                            'document_type':'DELETE_DOCUMENT',
-                            'document_value':'data:image/gif;base64,SUQs=='
-                        }]
+                userData = pendingDoc.get('userData')
+                if baseDocId is not None and baseDocId != '':
+                    docPayload = {
+                        'id': baseDocId,
+                        'email': userData.get('email'),
+                        'phone_number': userData.get('phone_number'),
+                        'ip': userData.get('ip'),
+                        'address_street': userData.get('address_street'),
+                        'address_city': userData.get('address_city'),
+                        'address_subdivision': userData.get('address_subdivision'),
+                        'address_postal_code': userData.get('address_postal_code'),
+                        'address_country_code': userData.get('address_country_code'),
+                        'day': userData.get('day'),
+                        'month': userData.get('month'),
+                        'year': userData.get('year'),
                     }
-                    document.update(**args)
 
-        # mark record status = DONE after processing
-        markDoneScheduledDoc(_id)
+                    for key in ['name', 'alias', 'entity_type', 'entity_scope']:
+                        if userData.get(key) is not None:
+                            docPayload[key] = userData.get(key)
+
+                    payload = {
+                        'documents': [docPayload]
+                    }
+                    client.users.update(userId, payload)
+            elif docType == 'delete_physical':
+                if baseDocId is not None and subDocId is not None:
+                    user = User.by_id(client, userId, 'yes')
+                    document = None
+                    for doc in user.base_documents:
+                        if doc.id == baseDocId:
+                            document = doc
+                            break
+
+                    if document is not None:
+                        # delete old doc if exist
+                        args = {
+                            'physical_documents': [{
+                                'id': subDocId,
+                                'document_type':'DELETE_DOCUMENT',
+                                'document_value':'data:image/gif;base64,SUQs=='
+                            }]
+                        }
+                        document.update(**args)
+
+            # mark record status = DONE after processing
+            markDoneScheduledDoc(_id)
+        except:
+            pass
+
 
 if __name__ == '__main__':
     process()

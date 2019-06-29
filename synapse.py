@@ -134,9 +134,9 @@ def addBasisDocument(user, data):
         address_city = address_city if len(address_city.split()) == len(address.get('city')) else address.get('city')
 
         dateOfBirth = data.get("dateOfBirth")
-        day = time.strftime("%d", time.localtime(int(dateOfBirth/1000)))
-        month = time.strftime("%m", time.localtime(int(dateOfBirth/1000)))
-        year = time.strftime("%Y", time.localtime(int(dateOfBirth/1000)))
+        day = time.strftime("%d", time.localtime(int(dateOfBirth)/1000))
+        month = time.strftime("%m", time.localtime(int(dateOfBirth)/1000))
+        year = time.strftime("%Y", time.localtime(int(dateOfBirth)/1000))
         name = pinyin.get(data.get("nameCn"), format="strip", delimiter=" ") if (data.get('nameCn', None) != '' and data.get('nameCn', None) != None) else data.get("nameEn")
         options = {
             'email': data.get('email'),
@@ -189,9 +189,9 @@ def addBusinessDocument(user, data, walletId):
         address_city = address_city if len(address_city.split()) == len(address.get('city')) else address.get('city')
 
         dateOfEstablishment = data.get("dateOfEstablishment")
-        day = time.strftime("%d", time.localtime(int(dateOfEstablishment/1000)))
-        month = time.strftime("%m", time.localtime(int(dateOfEstablishment/1000)))
-        year = time.strftime("%Y", time.localtime(int(dateOfEstablishment/1000)))
+        day = time.strftime("%d", time.localtime(int(dateOfEstablishment)/1000))
+        month = time.strftime("%m", time.localtime(int(dateOfEstablishment)/1000))
+        year = time.strftime("%Y", time.localtime(int(dateOfEstablishment)/1000))
 
         kwargs = {
             'email': walletId+'@epiapi.com',
